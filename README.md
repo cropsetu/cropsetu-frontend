@@ -209,3 +209,4 @@ farmeasy-backend/
 - **Prisma Studio**: Run `npm run db:studio` to browse your DB with a visual UI.
 - **Image uploads**: Cloudinary credentials are optional in dev. Leave them blank to get upload errors (won't break auth/chat/posts).
 # Farmeasy-frontend
+# Farmeasy-frontend
