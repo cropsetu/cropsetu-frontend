@@ -2,9 +2,10 @@ import Redis from 'ioredis';
 import { ENV } from './env.js';
 
 const redis = new Redis(ENV.REDIS_URL, {
-  maxRetriesPerRequest: 3,
+  maxRetriesPerRequest: 1,
   enableReadyCheck: false,
   lazyConnect: true,
+  retryStrategy: (times) => (times > 2 ? null : 500),
 });
 
 redis.on('connect', () => console.log('[Redis] Connected'));

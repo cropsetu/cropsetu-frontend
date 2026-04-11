@@ -42,9 +42,11 @@ const io = new SocketIO(httpServer, {
 // Falls back to in-memory adapter automatically if Redis is unavailable.
 // For single-instance demo deployments, Redis is not required.
 try {
-  const pubClient = new Redis(ENV.REDIS_URL, { lazyConnect: true });
+  const pubClient = new Redis(ENV.REDIS_URL, { lazyConnect: true, retryStrategy: () => null });
   const subClient = pubClient.duplicate();
-  await Promise.all([pubClient.connect(), subClient.connect()]); // throws on failure
+  pubClient.on('error', () => {});
+  subClient.on('error', () => {});
+  await Promise.all([pubClient.connect(), subClient.connect()]);
   io.adapter(createAdapter(pubClient, subClient));
   logger.info('[Socket.IO] Redis adapter attached');
 } catch {
