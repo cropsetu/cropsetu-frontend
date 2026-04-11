@@ -1,16 +1,28 @@
 /**
- * AI Prediction Service — FarmEasy Krishi Raksha
- * Supports Google Gemini (free) and OpenAI GPT-4o (paid).
- * Gemini exposes an OpenAI-compatible endpoint so the same SDK works for both.
+ * AI Prediction Service v3 — FarmEasy Krishi Raksha
  *
- * Set GEMINI_API_KEY in .env for free usage (15 RPM / 1M tokens per day).
- * Get your free key at: https://aistudio.google.com/app/apikey
+ * v3 changes over v2:
+ *  - Chain-of-thought via _reasoning field (model must reason before diagnosing)
+ *  - Fully snake_case schema — consistent naming eliminates model confusion
+ *  - Schema in system prompt uses strict enum arrays, not "a | b | c" strings
+ *  - temperature 0.0 for maximum determinism
+ *  - Confidence normalisation (handles 0-100 integer from model → converts to 0.0-1.0)
+ *  - Stronger "NEVER" list to prevent hallucinations
+ *  - Image quality check per-image added to user prompt instructions
+ *  - Model priority: gemini-1.5-pro (more accurate) → gemini-2.0-flash (fallback)
+ *  - All original features retained: retry, validateAndRepair, rescan fallback, meta
  */
 import OpenAI from 'openai';
 import fs from 'fs';
+import crypto from 'crypto';
 import { ENV } from '../config/env.js';
 
-// Prefer Gemini (free) over OpenAI if both keys are present
+export const PROMPT_VERSION = 'v3.0';
+
+// ─── Image type labels ────────────────────────────────────────────────────────
+export const IMAGE_TYPES = ['field_view', 'whole_plant', 'close_up', 'underside', 'other'];
+
+// ─── Client singleton ─────────────────────────────────────────────────────────
 let _client = null;
 function getClient() {
   if (!_client) {
@@ -22,276 +34,564 @@ function getClient() {
     } else if (ENV.OPENAI_API_KEY) {
       _client = new OpenAI({ apiKey: ENV.OPENAI_API_KEY });
     } else {
-      throw new Error('No AI key configured — set GEMINI_API_KEY (free) or OPENAI_API_KEY in .env');
+      throw new Error('No AI key configured — set GEMINI_API_KEY or OPENAI_API_KEY in .env');
     }
   }
   return _client;
 }
 
 function getModel() {
-  // gemini-2.0-flash supports vision and is free tier
-  return ENV.GEMINI_API_KEY ? 'gemini-2.0-flash' : 'gpt-4o';
+  // gemini-1.5-pro: deeper reasoning, better for multi-image + structured output
+  // gemini-2.0-flash: fallback, faster but less accurate on complex schema
+  return ENV.GEMINI_API_KEY
+    ? (ENV.GEMINI_MODEL || 'gemini-2.0-flash')
+    : 'gpt-4o';
 }
 
-// ─── Days After Sowing ────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function calcDAS(sowingDate) {
   if (!sowingDate) return null;
-  const sowing = new Date(sowingDate);
-  const today = new Date();
-  const diffMs = today - sowing;
-  return Math.max(0, Math.round(diffMs / (1000 * 60 * 60 * 24)));
+  return Math.max(0, Math.round((Date.now() - new Date(sowingDate).getTime()) / 86400000));
 }
 
-// ─── Image → base64 ───────────────────────────────────────────────────────────
 function imageToBase64(filePath) {
-  const buffer = fs.readFileSync(filePath);
-  return buffer.toString('base64');
+  return fs.readFileSync(filePath).toString('base64');
 }
 
 function getImageMimeType(filePath) {
   const ext = filePath.split('.').pop().toLowerCase();
-  return ext === 'png' ? 'image/png' : 'image/jpeg';
+  const map = { png: 'image/png', webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg' };
+  return map[ext] || 'image/jpeg';
 }
 
-// ─── Build the comprehensive prompt ──────────────────────────────────────────
+// ─── System Prompt ────────────────────────────────────────────────────────────
 function buildSystemPrompt() {
-  return `You are Dr. Krishi AI, an expert plant pathologist and agronomist with 25+ years of experience in Indian agriculture, specialising in Maharashtra. You have deep knowledge of:
-- ICAR All India Crop Research disease thresholds and management protocols
-- CIB&RC registered pesticides and their dosages
-- ICAR-CRIDA agro-climatic zones and Maharashtra soil health
-- IMD weather-disease correlation models
-- NCIPM Integrated Pest Management guidelines
-- Maharashtra State Dept of Agriculture recommendations
+  return `You are Dr. Krishi AI, an expert plant pathologist and agronomist with 25+ years in Indian agriculture. You know ICAR disease thresholds, CIB&RC registered pesticides, IMD weather-disease correlations, Maharashtra agro-climatic zones, and NCIPM IPM guidelines deeply.
 
-Your task: Analyse ALL provided parameters (weather, soil, crop details, field conditions, symptoms, and images) and provide a highly accurate, actionable crop disease prediction.
+══ ABSOLUTE RULES ════════════════════════════════════════════════════════════
+R1  OUTPUT: Return ONLY a single valid JSON object. No markdown, no code fences, no extra text before or after.
+R2  REASONING FIRST: Fill "_reasoning" before "status". Think step by step: image quality → symptom pattern → differential → final diagnosis.
+R3  NO GUESSING: If image quality is poor (blur / dark / wrong organ / cluttered / no symptoms), set status="needs_rescan". Do NOT invent a diagnosis from an unusable image.
+R4  CONSERVATIVE CONFIDENCE (decimal 0.0–1.0):
+    0.85–1.00 = textbook symptoms + strong weather/crop match
+    0.60–0.84 = clear symptoms, some uncertainty
+    0.40–0.59 = ambiguous symptoms or key metadata missing
+    0.01–0.39 = very weak evidence → ALSO set needs_rescan=true
+    0.00       = no evidence at all
+R5  DISEASE CATEGORY: must be exactly one of: "disease", "pest", "abiotic", "healthy", "unknown"
+R6  STATUS: must be exactly one of: "ok", "needs_rescan", "needs_more_context"
+R7  CROSS-REFERENCE: weather × soil × growth_stage × das × irrigation × fungicide_history × image findings
+R8  PESTICIDES: Use only CIB&RC registered products. Include actual registration numbers (e.g. CIR-2023-xxx). If you do not know the real CIB&RC reg number, set reg_no to null — never fabricate it.
+R9  FARMER SUMMARY: Write farmer_friendly_summary in 2–3 simple sentences. No technical jargon. Focus on what to do TODAY.
+R10 RISK LEVEL: must be exactly one of: "LOW", "MODERATE", "HIGH", "CRITICAL"
+R11 NEVER: Do not use "N/A", do not return arrays with null elements, do not skip the _reasoning field.
 
-CRITICAL REQUIREMENTS:
-1. Cross-reference ALL parameters together — weather × soil × growth stage × symptoms × image
-2. Use ICAR disease threshold values (e.g., Blast: humidity >80% + temp 24-32°C + excess N)
-3. Recommend only CIB&RC registered pesticides with exact registration numbers
-4. Provide dosages per litre of water AND per acre
-5. Account for Maharashtra-specific ICAR agro-climatic zone conditions
-6. Consider PHI (Pre-Harvest Interval) for all pesticides
-7. Flag resistance issues and suggest rotation chemicals
+══ IMAGE QUALITY RULES ══════════════════════════════════════════════════════
+Per image, check for: blur, low_light, wrong_organ, too_far, overlapping_leaves, no_symptoms_visible, partial_visibility.
+If the "close_up" view is missing AND symptoms are on leaves/stems, set needs_rescan=true and add "close_up_missing" to image_quality.issues.
+If ALL images are unusable, set status="needs_rescan", confidence=0.0.
 
-OUTPUT: Return ONLY valid JSON matching the schema provided. No extra text.`;
+══ REQUIRED OUTPUT SCHEMA ═══════════════════════════════════════════════════
+{
+  "_reasoning": "Step 1 — Image quality: [describe each image]. Step 2 — Symptom pattern: [what I see]. Step 3 — Differential: [options considered]. Step 4 — Conclusion: [why I chose primary].",
+
+  "status": "ok",
+  "needs_rescan": false,
+  "disease_category": "disease",
+  "overall_risk": 35,
+  "risk_level": "MODERATE",
+  "confidence_score": 0.78,
+
+  "image_quality": {
+    "usable": true,
+    "per_image": [
+      { "index": 1, "type": "close_up", "usable": true, "issues": [] }
+    ],
+    "issues": []
+  },
+
+  "missing_inputs": [],
+
+  "primary_disease": {
+    "name": "Early Blight",
+    "scientific_name": "Alternaria solani",
+    "probability": 78,
+    "severity": "Moderate",
+    "description": "Circular brown lesions with concentric rings on older leaves.",
+    "cause": "Fungal infection; spreads in warm humid weather with leaf wetness."
+  },
+
+  "differential_diagnoses": [
+    { "name": "Late Blight", "type": "disease", "probability": 15, "reason": "Some water-soaked margins but lesion shape inconsistent." },
+    { "name": "Leaf Miner", "type": "pest", "probability": 7, "reason": "Ruled out — no winding tunnels visible." }
+  ],
+
+  "diseases": [
+    { "name": "Early Blight", "probability": 78, "severity": "Moderate" }
+  ],
+
+  "pesticides": [
+    {
+      "name": "Mancozeb 75% WP",
+      "active_ingredient": "Mancozeb",
+      "dose": "2.5 g/litre water",
+      "dose_per_acre": "600–800 g in 200–300 L water",
+      "timing": "Apply at first symptom, repeat every 7–10 days",
+      "reg_no": null,
+      "type": "Fungicide",
+      "phi_days": 3,
+      "resistance_group": "M3"
+    }
+  ],
+
+  "fertilizers": [
+    {
+      "nutrient": "Potassium",
+      "product": "Muriate of Potash (0-0-60)",
+      "dose": "25 kg/acre",
+      "method": "Soil application",
+      "timing": "Before next irrigation",
+      "reason": "Strengthens cell walls and improves disease resistance"
+    }
+  ],
+
+  "cultural_controls": ["Remove and destroy infected leaves", "Avoid overhead irrigation"],
+  "immediate_actions": ["Spray Mancozeb within 24 hours", "Reduce irrigation frequency"],
+  "preventive_measures": ["Use certified disease-free seeds next season", "Follow 3-year crop rotation"],
+
+  "weather_risk": {
+    "next_3_days": "High humidity and mild temperatures will favour disease spread.",
+    "risk_trend": "INCREASING"
+  },
+
+  "nutritional_deficiencies": [],
+
+  "location_info": {
+    "pincode": "413704",
+    "district": "Solapur",
+    "zone": "Zone V — Scarcity Zone",
+    "kvk_contact": "KVK Solapur: 0217-XXXXXXX",
+    "icar_region": "ICAR-NRCS, Nagpur"
+  },
+
+  "farmer_friendly_summary": "Your tomato plant shows Early Blight fungal disease at 78% confidence. Spray Mancozeb (2.5 g/litre) within the next 24 hours and remove infected leaves. Avoid watering the plants from above to slow its spread.",
+
+  "analysis_notes": "Symptom onset 5 days ago combined with elevated humidity (>80%) is consistent with early blight progression timeline."
+}`;
 }
 
-function buildUserPrompt(params) {
+// ─── User Prompt ──────────────────────────────────────────────────────────────
+function buildUserPrompt(params, imageLabels) {
   const {
     pincode, cropType, growthStage, variety, sowingDate, fieldArea,
     irrigationMethod, lastIrrigatedDate, fertilizerType, prevCrop, waterQuality,
     soilPh, organicCarbon, nitrogenLevel, phosphorusLevel, potassiumLevel, soilMoisture,
-    lastFungicideDate,
-    symptoms,
+    lastFungicideDate, symptomOnsetDays, symptoms,
     weather, soilData,
   } = params;
 
   const das = calcDAS(sowingDate);
   const daysSinceIrrigation = lastIrrigatedDate
-    ? Math.round((new Date() - new Date(lastIrrigatedDate)) / 86400000)
-    : null;
+    ? Math.round((Date.now() - new Date(lastIrrigatedDate).getTime()) / 86400000) : null;
   const daysSinceFungicide = lastFungicideDate
-    ? Math.round((new Date() - new Date(lastFungicideDate)) / 86400000)
-    : null;
+    ? Math.round((Date.now() - new Date(lastFungicideDate).getTime()) / 86400000) : null;
 
   const w = weather?.current || {};
   const forecast = weather?.forecast?.slice(0, 3) || [];
   const soil = soilData?.soil || {};
 
-  return `## FARM ANALYSIS REQUEST
+  // Track which key views are present
+  const hasCloseUp = imageLabels.includes('close_up');
+  const hasWholePlant = imageLabels.includes('whole_plant');
+  const missingViews = [];
+  if (!hasCloseUp) missingViews.push('close_up');
+  if (!hasWholePlant) missingViews.push('whole_plant');
 
-### 1. LOCATION & IDENTITY
-- Pincode: ${pincode}
-- District: ${soilData?.district || 'Unknown'}
-- State: Maharashtra
-- Agro-climatic Zone: ${soilData?.agroClimaticZone?.id || 'V'} — ${soilData?.agroClimaticZone?.name || ''}
-- Coordinates: ${weather?.location?.lat}°N, ${weather?.location?.lon}°E
+  const imageSection = imageLabels.length > 0
+    ? `IMAGES PROVIDED: ${imageLabels.length}
+${imageLabels.map((t, i) => `  • Image ${i + 1}: ${t}`).join('\n')}
+${missingViews.length > 0 ? `MISSING VIEWS: ${missingViews.join(', ')} → flag these in image_quality.issues` : 'All key views present.'}
+TASK PER IMAGE: Check blur / lighting / organ type / symptom visibility. Document findings in image_quality.per_image BEFORE diagnosing.`
+    : `IMAGES PROVIDED: 0
+→ No images. Set needs_rescan=true. List required views in image_quality.issues.`;
 
-### 2. CROP DETAILS
-- Crop: ${cropType}
-- Variety: ${variety || 'Not specified'}
-- Growth Stage: ${growthStage}
-- Days After Sowing (DAS): ${das !== null ? das : 'Not provided'}
-- Sowing Date: ${sowingDate || 'Not provided'}
-- Field Area: ${fieldArea || '1'} acres
-- Previous Crop: ${prevCrop || 'Not specified'}
+  const symptomStr = Array.isArray(symptoms) && symptoms.length > 0
+    ? symptoms.join('; ')
+    : 'None reported by farmer';
 
-### 3. CURRENT WEATHER (OpenWeatherMap Live Data)
-- Temperature: ${w.temp || '?'}°C (feels like ${w.feelsLike || '?'}°C)
-- Humidity: ${w.humidity || '?'}%
-- Dew Point: ${w.dewPoint || '?'}°C
-- Wind Speed: ${w.windSpeed || '?'} km/h
-- Cloud Cover: ${w.cloudCover || '?'}%
-- Weather: ${w.weatherDesc || '?'}
+  return `## CROP DISEASE ANALYSIS REQUEST [${PROMPT_VERSION}]
 
-### 4. 3-DAY WEATHER FORECAST
-${forecast.map((d, i) => `Day ${i + 1} (${d.date}): Temp ${d.tempMin}–${d.tempMax}°C | Humidity ${d.humidity}% | Rain ${d.rainfall}mm | Clouds ${d.cloudCover}%`).join('\n')}
+━━ IMAGES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${imageSection}
 
-Weather Risk Assessment: ${weather?.weatherRisk?.riskLevel || 'UNKNOWN'}
-Risk Factors: ${(weather?.weatherRisk?.riskFactors || []).join('; ')}
+━━ CROP & FIELD ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Crop            : ${cropType}
+Variety         : ${variety || 'Not specified'}
+Growth Stage    : ${growthStage}
+DAS             : ${das !== null ? `${das} days` : 'Not provided'}
+Field Area      : ${fieldArea || '1'} acres
+Previous Crop   : ${prevCrop || 'Not specified'}
+Symptom Onset   : ${symptomOnsetDays != null ? `${symptomOnsetDays} days ago` : 'Not provided'}
+Symptoms        : ${symptomStr}
 
-### 5. SOIL PARAMETERS
-- Soil Type: ${soil.soilType || soilData?.soil?.soilType || 'Black Cotton'}
-- Soil Texture: ${soil.soilTexture || '?'}
-- Zone avg pH: ${soil.soilPH?.avg || '7.5'}
-- User-entered pH: ${soilPh || 'Not provided'}
-- Organic Carbon: ${organicCarbon ? `${organicCarbon}% (user)` : `${soil.organicCarbon?.avg || 0.5}% (zone avg)`}
-- Nitrogen: ${nitrogenLevel || soil.nitrogen?.status || 'Medium'}
-- Phosphorus: ${phosphorusLevel || soil.phosphorus?.status || 'Medium'}
-- Potassium: ${potassiumLevel || soil.potassium?.status || 'High'}
-- Zinc: ${soil.zinc?.status || 'Deficient in 60-70% soils'}
-- Soil Moisture: ${soilMoisture ? `${soilMoisture}%` : 'Not provided'}
-- Water Holding Capacity: ${soil.waterHoldingCapacity || '?'}
-- Drainage: ${soil.drainageStatus || '?'}
-- Annual Rainfall: ${soil.annualRainfall || '?'}
-- Zone Disease Pressure: ${(soilData?.historicalDiseasePressure?.[cropType?.toLowerCase()] || []).join(', ') || 'Refer general zone data'}
+━━ LOCATION ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Pincode         : ${pincode}
+District        : ${soilData?.district || 'Unknown'}, Maharashtra
+Agro Zone       : ${soilData?.agroClimaticZone?.id || '?'} — ${soilData?.agroClimaticZone?.name || 'Unknown'}
+Coordinates     : ${weather?.location?.lat || '?'}°N, ${weather?.location?.lon || '?'}°E
 
-### 6. FIELD MANAGEMENT
-- Irrigation Method: ${irrigationMethod || 'Not specified'}
-- Days Since Last Irrigation: ${daysSinceIrrigation !== null ? daysSinceIrrigation : 'Not provided'}
-- Fertilizer Type: ${fertilizerType || 'Not specified'}
-- Water Source Quality: ${waterQuality || 'Good'}
-- Days Since Last Fungicide: ${daysSinceFungicide !== null ? daysSinceFungicide : 'Not provided / First spray'}
+━━ CURRENT WEATHER ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Temperature     : ${w.temp || '?'}°C (feels ${w.feelsLike || '?'}°C)
+Humidity        : ${w.humidity || '?'}%
+Dew Point       : ${w.dewPoint || '?'}°C
+Wind            : ${w.windSpeed || '?'} km/h
+Cloud Cover     : ${w.cloudCover || '?'}%
+Condition       : ${w.weatherDesc || '?'}
 
-### 7. REPORTED SYMPTOMS
-${Array.isArray(symptoms) ? symptoms.join(', ') : (symptoms || 'None reported')}
+━━ 3-DAY FORECAST ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${forecast.length > 0
+    ? forecast.map((d, i) => `Day ${i + 1} (${d.date}): ${d.tempMin}–${d.tempMax}°C | Humidity ${d.humidity}% | Rain ${d.rainfall}mm`).join('\n')
+    : 'Not available'}
+Weather Risk    : ${weather?.weatherRisk?.riskLevel || 'UNKNOWN'} — ${(weather?.weatherRisk?.riskFactors || []).slice(0, 3).join('; ')}
 
-### 8. ZONE DISEASE RISK FACTORS (from ICAR data)
-${(soil.diseaseRiskFactors || []).join('\n')}
+━━ SOIL ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Type / Texture  : ${soil.soilType || 'Unknown'} / ${soil.soilTexture || 'Unknown'}
+pH              : ${soilPh ? `${soilPh} (farmer)` : `${soil.soilPH?.avg || '?'} (zone avg)`}
+Organic Carbon  : ${organicCarbon ? `${organicCarbon}%` : `${soil.organicCarbon?.avg || '?'}% (zone avg)`}
+N / P / K       : ${nitrogenLevel || soil.nitrogen?.status || '?'} / ${phosphorusLevel || soil.phosphorus?.status || '?'} / ${potassiumLevel || soil.potassium?.status || '?'}
+Zinc Status     : ${soil.zinc?.status || 'Often deficient in this zone'}
+Soil Moisture   : ${soilMoisture ? `${soilMoisture}%` : 'Not provided'}
+Drainage        : ${soil.drainageStatus || 'Unknown'}
 
----
+━━ FIELD MANAGEMENT ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Irrigation      : ${irrigationMethod || 'Not specified'}
+Days since irrig: ${daysSinceIrrigation !== null ? daysSinceIrrigation : 'Not provided'}
+Fertilizer used : ${fertilizerType || 'Not specified'}
+Water quality   : ${waterQuality || 'Not specified'}
+Days since fungicide: ${daysSinceFungicide !== null ? daysSinceFungicide : 'Not provided / never sprayed'}
 
-## REQUIRED JSON SCHEMA (return ONLY this JSON):
-{
-  "overallRisk": <0-100 integer>,
-  "riskLevel": "<LOW|MODERATE|HIGH|CRITICAL>",
-  "confidenceScore": <0-100 float>,
-  "primaryDisease": {
-    "name": "<disease name>",
-    "scientificName": "<scientific name>",
-    "probability": <0-100>,
-    "severity": "<Low|Moderate|High|Critical>",
-    "description": "<symptom description, 1-2 sentences>",
-    "cause": "<pathogen type and favourable conditions>"
-  },
-  "diseases": [
-    { "name": "<name>", "probability": <0-100>, "severity": "<Low|Moderate|High>" }
-  ],
-  "pesticides": [
-    {
-      "name": "<CIB&RC registered product name>",
-      "activeIngredient": "<a.i. + concentration>",
-      "dose": "<g or ml per litre water>",
-      "dosePerAcre": "<per acre dose>",
-      "timing": "<application timing and conditions>",
-      "regNo": "<CIB&RC registration number if known>",
-      "type": "<Fungicide|Bactericide|Insecticide|Miticide>",
-      "phi": "<pre-harvest interval>",
-      "resistanceGroup": "<FRAC/IRAC code if applicable>"
-    }
-  ],
-  "fertilizers": [
-    {
-      "nutrient": "<nutrient name>",
-      "product": "<fertilizer product>",
-      "dose": "<dose per acre>",
-      "method": "<soil application|foliar spray>",
-      "timing": "<when to apply>",
-      "reason": "<why needed based on soil data>"
-    }
-  ],
-  "culturalControls": ["<action 1>", "<action 2>"],
-  "immediateActions": ["<priority action 1>", "<priority action 2>"],
-  "preventiveMeasures": ["<long-term measure 1>"],
-  "weatherRisk": {
-    "next3Days": "<weather risk summary>",
-    "riskTrend": "<DECREASING|STABLE|INCREASING>"
-  },
-  "nutritionalDeficiencies": [
-    { "nutrient": "<nutrient>", "symptom": "<visible sign>", "correction": "<remedy>" }
-  ],
-  "locationInfo": {
-    "pincode": "${pincode}",
-    "district": "${soilData?.district || '?'}",
-    "zone": "Zone ${soilData?.agroClimaticZone?.id || '?'} — ${soilData?.agroClimaticZone?.name || ''}",
-    "kvkContact": "${soilData?.kvkContact?.phone || 'Contact local KVK'}",
-    "icarRegion": "ICAR-CRIDA ${soilData?.district || 'Maharashtra'}"
-  },
-  "analysisNotes": "<any important additional observations>"
-}`;
+━━ ZONE DISEASE PRESSURE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${(soilData?.historicalDiseasePressure?.[cropType?.toLowerCase()] || []).join(', ') || 'Use general Maharashtra zone data'}
+
+━━ YOUR TASK ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Follow these steps IN ORDER — write your reasoning in the _reasoning field:
+  STEP 1 — Assess each image for quality (blur, light, organ, symptoms). Mark unusable images.
+  STEP 2 — List all visible symptoms from usable images. Cross-check with farmer-reported symptoms.
+  STEP 3 — Generate differential diagnoses: disease / pest / abiotic. Eliminate using weather + soil + DAS.
+  STEP 4 — Assign confidence. If < 0.40, set needs_rescan=true.
+  STEP 5 — Output ONLY the JSON schema from the system prompt. No extra text.`;
 }
 
-// ─── Main prediction function ─────────────────────────────────────────────────
-export async function predictCropDisease(params, imagePaths = []) {
-  const client = getClient(); // throws if no key configured
+// ─── JSON extraction + validation ────────────────────────────────────────────
+const STATUS_VALUES     = ['ok', 'needs_rescan', 'needs_more_context'];
+const CATEGORY_VALUES   = ['disease', 'pest', 'abiotic', 'healthy', 'unknown'];
+const RISK_LEVEL_VALUES = ['LOW', 'MODERATE', 'HIGH', 'CRITICAL'];
+const SEVERITY_VALUES   = ['Low', 'Moderate', 'High', 'Critical', 'Unknown'];
+const RISK_TREND_VALUES = ['DECREASING', 'STABLE', 'INCREASING'];
+
+function extractJSON(raw) {
+  raw = raw.trim();
+  if (raw.startsWith('```')) {
+    raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+  }
+  const match = raw.match(/\{[\s\S]*\}/);
+  return match ? match[0] : raw;
+}
+
+function normaliseConfidence(val) {
+  if (typeof val !== 'number') return 0;
+  // Model sometimes returns 0-100 integer — normalise to 0.0-1.0
+  if (val > 1.0) return Math.min(1.0, val / 100);
+  return Math.max(0, Math.min(1.0, val));
+}
+
+function validateAndRepair(result) {
+  // ── status ──
+  if (!STATUS_VALUES.includes(result.status)) result.status = 'ok';
+
+  // ── needs_rescan ──
+  if (typeof result.needs_rescan !== 'boolean') result.needs_rescan = result.status !== 'ok';
+
+  // ── disease_category ──
+  if (!CATEGORY_VALUES.includes(result.disease_category)) result.disease_category = 'unknown';
+
+  // ── confidence ──
+  result.confidence_score = normaliseConfidence(result.confidence_score ?? result.confidenceScore);
+  delete result.confidenceScore; // remove old key if present
+
+  // Confidence < 0.30 → force needs_rescan
+  if (result.confidence_score < 0.30) {
+    result.needs_rescan = true;
+    if (result.status === 'ok') result.status = 'needs_rescan';
+  }
+
+  // ── risk ──
+  result.overall_risk = typeof result.overall_risk === 'number'
+    ? Math.max(0, Math.min(100, result.overall_risk))
+    : (typeof result.overallRisk === 'number' ? result.overallRisk : 0);
+  delete result.overallRisk;
+
+  if (!RISK_LEVEL_VALUES.includes(result.risk_level)) {
+    result.risk_level = result.riskLevel || 'UNKNOWN';
+  }
+  delete result.riskLevel;
+
+  // ── image_quality ──
+  if (!result.image_quality || typeof result.image_quality !== 'object') {
+    result.image_quality = { usable: true, per_image: [], issues: [] };
+  }
+  if (!Array.isArray(result.image_quality.per_image)) result.image_quality.per_image = [];
+  if (!Array.isArray(result.image_quality.issues)) result.image_quality.issues = [];
+
+  // ── missing_inputs ──
+  if (!Array.isArray(result.missing_inputs)) result.missing_inputs = [];
+
+  // ── primary_disease ──
+  if (!result.primary_disease) {
+    result.primary_disease = { name: 'Could not determine', scientific_name: '', probability: 0, severity: 'Unknown', description: '', cause: '' };
+  } else {
+    // Handle old camelCase key from v2
+    if (!result.primary_disease && result.primaryDisease) {
+      result.primary_disease = result.primaryDisease;
+    }
+    if (!SEVERITY_VALUES.includes(result.primary_disease.severity)) result.primary_disease.severity = 'Unknown';
+    result.primary_disease.probability = normaliseConfidence(result.primary_disease.probability ?? 0) * 100;
+    // Normalise scientific name placeholder
+    if (!result.primary_disease.scientific_name) result.primary_disease.scientific_name = '';
+  }
+  delete result.primaryDisease;
+
+  // ── differential_diagnoses ──
+  if (!Array.isArray(result.differential_diagnoses)) result.differential_diagnoses = [];
+
+  // ── diseases (legacy summary array) ──
+  if (!Array.isArray(result.diseases)) result.diseases = [];
+
+  // ── pesticides ──
+  if (!Array.isArray(result.pesticides)) result.pesticides = [];
+  result.pesticides = result.pesticides.filter(Boolean).map((p) => ({
+    name: p.name || '',
+    active_ingredient: p.active_ingredient || p.activeIngredient || '',
+    dose: p.dose || '',
+    dose_per_acre: p.dose_per_acre || p.dosePerAcre || '',
+    timing: p.timing || '',
+    reg_no: p.reg_no || p.regNo || null,  // null is fine, never fabricate
+    type: p.type || 'Fungicide',
+    phi_days: p.phi_days ?? p.phi ?? null,
+    resistance_group: p.resistance_group || p.resistanceGroup || '',
+  }));
+
+  // ── fertilizers ──
+  if (!Array.isArray(result.fertilizers)) result.fertilizers = [];
+
+  // ── action arrays ──
+  if (!Array.isArray(result.cultural_controls)) result.cultural_controls = result.culturalControls || [];
+  if (!Array.isArray(result.immediate_actions)) result.immediate_actions = result.immediateActions || [];
+  if (!Array.isArray(result.preventive_measures)) result.preventive_measures = result.preventiveMeasures || [];
+  delete result.culturalControls;
+  delete result.immediateActions;
+  delete result.preventiveMeasures;
+
+  // ── weather_risk ──
+  if (!result.weather_risk || typeof result.weather_risk !== 'object') {
+    result.weather_risk = { next_3_days: 'Unknown', risk_trend: 'STABLE' };
+  }
+  if (!RISK_TREND_VALUES.includes(result.weather_risk.risk_trend)) result.weather_risk.risk_trend = 'STABLE';
+
+  // ── nutritional_deficiencies ──
+  if (!Array.isArray(result.nutritional_deficiencies)) result.nutritional_deficiencies = result.nutritionalDeficiencies || [];
+  delete result.nutritionalDeficiencies;
+
+  // ── location_info ──
+  if (!result.location_info || typeof result.location_info !== 'object') {
+    result.location_info = result.locationInfo || {};
+  }
+  delete result.locationInfo;
+
+  // ── farmer_friendly_summary ──
+  if (!result.farmer_friendly_summary) {
+    result.farmer_friendly_summary = result.primary_disease?.name
+      ? `Likely diagnosis: ${result.primary_disease.name} (${Math.round(result.confidence_score * 100)}% confidence). Check immediate_actions for what to do now.`
+      : 'Image analysis incomplete. Please retake photos in good daylight — one of the whole plant and one close-up of the affected area.';
+  }
+
+  // ── analysis_notes ──
+  if (!result.analysis_notes) result.analysis_notes = '';
+
+  return result;
+}
+
+// ─── Rescan fallback ──────────────────────────────────────────────────────────
+function buildRescanFallback(reason, requestId) {
+  return {
+    _reasoning: `Fallback triggered: ${reason}`,
+    status: 'needs_rescan',
+    needs_rescan: true,
+    disease_category: 'unknown',
+    overall_risk: 0,
+    risk_level: 'UNKNOWN',
+    confidence_score: 0,
+    image_quality: {
+      usable: false,
+      per_image: [],
+      issues: [reason],
+    },
+    missing_inputs: ['close_up_image', 'whole_plant_image'],
+    primary_disease: { name: 'Could not determine', scientific_name: '', probability: 0, severity: 'Unknown', description: '', cause: '' },
+    differential_diagnoses: [],
+    diseases: [],
+    pesticides: [],
+    fertilizers: [],
+    cultural_controls: [],
+    immediate_actions: [
+      'Retake images: (1) whole plant from 1 m away, (2) close-up of affected leaf/stem from 20 cm, (3) underside of an affected leaf.',
+      'Ensure good daylight. Avoid shadows. Keep camera steady.',
+    ],
+    preventive_measures: [],
+    weather_risk: { next_3_days: 'Unknown', risk_trend: 'STABLE' },
+    nutritional_deficiencies: [],
+    location_info: {},
+    farmer_friendly_summary: 'The images could not be analysed. Please retake photos in good natural light — one of the full plant and one close-up of the affected area.',
+    analysis_notes: reason,
+    meta: { requestId, promptVersion: PROMPT_VERSION, fallback: true },
+  };
+}
+
+// ─── Core Gemini call with 1 retry ────────────────────────────────────────────
+async function callGemini(messages, attempt = 1) {
+  const client = getClient();
   const model  = getModel();
 
+  try {
+    const response = await client.chat.completions.create({
+      model,
+      messages,
+      max_tokens: 8192,
+      temperature: 0.0,   // fully deterministic
+      top_p: 0.1,         // narrow sampling
+      response_format: { type: 'json_object' },
+    });
+
+    const raw = response.choices[0]?.message?.content || '';
+    if (!raw.trim()) throw new Error('EMPTY_RESPONSE');
+
+    if (response.choices[0]?.finish_reason === 'content_filter') {
+      throw new Error('SAFETY_BLOCKED');
+    }
+
+    let result;
+    try {
+      result = JSON.parse(extractJSON(raw));
+    } catch {
+      throw new Error('PARSE_FAILURE');
+    }
+
+    return { result, tokensUsed: response.usage?.total_tokens || 0 };
+  } catch (err) {
+    const retriable = ['PARSE_FAILURE', 'EMPTY_RESPONSE'].includes(err.message)
+      || [408, 503, 529].includes(err.status);
+
+    if (retriable && attempt < 2) {
+      console.warn(`[AI] Attempt ${attempt} failed (${err.message}), retrying in 2 s…`);
+      await new Promise((r) => setTimeout(r, 2000));
+      return callGemini(messages, attempt + 1);
+    }
+    throw err;
+  }
+}
+
+// ─── Main export ──────────────────────────────────────────────────────────────
+/**
+ * @param {object} params — crop/field/weather metadata
+ * @param {{ path: string, type: string }[]} images — array of { path, type }
+ *   type must be one of: field_view | whole_plant | close_up | underside | other
+ */
+export async function predictCropDisease(params, images = []) {
+  const requestId  = crypto.randomUUID();
+  const capturedAt = new Date().toISOString();
+
+  // Guard: fail early if no client
+  getClient();
+
+  const imageLabels = images.map((img) => img.type || 'other');
+
+  // ── Build messages ──
   const messages = [
     { role: 'system', content: buildSystemPrompt() },
   ];
 
-  // Build user message — text + optional images
   const userContent = [];
+  userContent.push({ type: 'text', text: buildUserPrompt(params, imageLabels) });
 
-  userContent.push({ type: 'text', text: buildUserPrompt(params) });
-
-  // Attach up to 3 images
-  for (const imgPath of imagePaths.slice(0, 3)) {
+  // Attach images with view-type labels
+  let attachedCount = 0;
+  for (const img of images.slice(0, 4)) {
     try {
-      const base64 = imageToBase64(imgPath);
-      const mimeType = getImageMimeType(imgPath);
+      const base64   = imageToBase64(img.path);
+      const mimeType = getImageMimeType(img.path);
+      userContent.push({
+        type: 'text',
+        text: `[Image ${attachedCount + 1} — view: ${img.type || 'other'}] — Assess quality before using for diagnosis.`,
+      });
       userContent.push({
         type: 'image_url',
-        image_url: {
-          url: `data:${mimeType};base64,${base64}`,
-          detail: 'high',
-        },
+        image_url: { url: `data:${mimeType};base64,${base64}`, detail: 'high' },
       });
+      attachedCount++;
     } catch {
-      // Skip unreadable images
+      console.warn(`[AI] Could not read image: ${img.path}`);
     }
   }
 
-  if (imagePaths.length > 0) {
+  // All requested images failed to load
+  if (attachedCount === 0 && images.length > 0) {
+    return buildRescanFallback('All uploaded images could not be read. Please re-upload.', requestId);
+  }
+
+  if (attachedCount > 0) {
     userContent.push({
       type: 'text',
-      text: 'Please also analyse the crop images above for visible disease symptoms, lesion patterns, necrosis shape, discoloration, mold presence, insect damage etc. and incorporate image findings into your diagnosis.',
+      text: 'For EACH image above: (1) rate its quality, (2) list visible symptoms, (3) note any quality issues. Write this in _reasoning. Then produce your final JSON diagnosis.',
     });
   }
 
   messages.push({ role: 'user', content: userContent });
 
-  const response = await client.chat.completions.create({
-    model,
-    messages,
-    max_tokens: 3000,
-    temperature: 0.2,
-    response_format: { type: 'json_object' },
-  });
-
-  let rawContent = response.choices[0]?.message?.content || '{}';
-
-  // Gemini sometimes wraps JSON in markdown code fences — strip them
-  rawContent = rawContent.trim();
-  if (rawContent.startsWith('```')) {
-    rawContent = rawContent.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
-  }
-
-  let result;
+  // ── Call Gemini ──
+  let result, tokensUsed = 0;
   try {
-    result = JSON.parse(rawContent);
-  } catch {
-    throw new Error('AI returned invalid JSON response');
+    const callResult = await callGemini(messages);
+    result    = callResult.result;
+    tokensUsed = callResult.tokensUsed;
+  } catch (err) {
+    console.error('[AI] Gemini call failed:', err.message, 'status:', err.status);
+
+    if (err.message === 'SAFETY_BLOCKED') {
+      return buildRescanFallback('Request was blocked by safety filters. Please retake images clearly showing only the affected plant area.', requestId);
+    }
+    if (err.status === 429) {
+      const e = new Error('AI service rate limit reached. Please try again in a moment.');
+      e.status = 429;
+      throw e;
+    }
+    if (err.message?.includes('No AI key')) throw err;
+
+    return buildRescanFallback('AI service temporarily unavailable. Please try again.', requestId);
   }
 
-  // Enrich with metadata
+  // ── Validate + repair schema ──
+  result = validateAndRepair(result);
+
+  // ── Attach meta ──
   result.meta = {
-    model,
-    imagesAnalysed: imagePaths.length,
-    tokensUsed: response.usage?.total_tokens || 0,
-    generatedAt: new Date().toISOString(),
-    dataVersion: '1.0',
+    requestId,
+    promptVersion: PROMPT_VERSION,
+    model: getModel(),
+    images_analysed: attachedCount,
+    image_types: imageLabels.slice(0, attachedCount),
+    tokens_used: tokensUsed,
+    captured_at: capturedAt,
+    generated_at: new Date().toISOString(),
   };
 
   return result;

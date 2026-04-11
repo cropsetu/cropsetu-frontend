@@ -33,16 +33,19 @@ router.get(
     query('limit').optional().isInt({ min: 1, max: 50 }),
     query('minPrice').optional().isFloat({ min: 0 }),
     query('maxPrice').optional().isFloat({ min: 0 }),
+    query('lat').optional().isFloat(),
+    query('lng').optional().isFloat(),
+    query('radius').optional().isFloat({ min: 1, max: 500 }),
   ],
   validate,
   async (req, res) => {
     const page  = parseInt(req.query.page  || '1', 10);
     const limit = parseInt(req.query.limit || '20', 10);
-    const { animal, search, minPrice, maxPrice, district } = req.query;
+    const { animal, search, minPrice, maxPrice, district, lat, lng, radius } = req.query;
 
     const where = { status: 'ACTIVE' };
     if (animal)   where.animal = { equals: animal, mode: 'insensitive' };
-    if (district) where.district = { contains: district, mode: 'insensitive' };
+    if (district) where.sellerLocation = { contains: district, mode: 'insensitive' };
     if (minPrice || maxPrice) {
       where.price = {};
       if (minPrice) where.price.gte = parseFloat(minPrice);
@@ -54,6 +57,35 @@ router.get(
         { breed:  { contains: search, mode: 'insensitive' } },
         { sellerLocation: { contains: search, mode: 'insensitive' } },
       ];
+    }
+
+    // ── Distance filter (Haversine) ──────────────────────────────────────────
+    let nearbyIds = null;
+    if (lat && lng && radius) {
+      const latF    = parseFloat(lat);
+      const lngF    = parseFloat(lng);
+      const radiusF = parseFloat(radius);
+      const rows = await prisma.$queryRaw`
+        SELECT id FROM animal_listings
+        WHERE status = 'ACTIVE'
+          AND lat IS NOT NULL AND lng IS NOT NULL
+          AND (
+            6371 * acos(
+              LEAST(1.0,
+                cos(radians(${latF})) * cos(radians(lat)) *
+                cos(radians(lng) - radians(${lngF})) +
+                sin(radians(${latF})) * sin(radians(lat))
+              )
+            )
+          ) <= ${radiusF}
+      `;
+      nearbyIds = rows.map(r => r.id);
+      if (nearbyIds.length > 0) {
+        where.id = { in: nearbyIds };
+      } else {
+        // No results within radius — return empty immediately
+        return sendSuccess(res, [], 200, paginationMeta(0, page, limit));
+      }
     }
 
     const [listings, total] = await Promise.all([
@@ -69,7 +101,24 @@ router.get(
       prisma.animalListing.count({ where }),
     ]);
 
-    return sendSuccess(res, listings, 200, paginationMeta(total, page, limit));
+    // Attach distance_km to each listing if coordinates were provided
+    let result = listings;
+    if (lat && lng) {
+      const latF = parseFloat(lat);
+      const lngF = parseFloat(lng);
+      result = listings.map(l => {
+        if (l.lat == null || l.lng == null) return l;
+        const dLat = (l.lat - latF) * Math.PI / 180;
+        const dLon = (l.lng - lngF) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) ** 2 +
+          Math.cos(latF * Math.PI / 180) * Math.cos(l.lat * Math.PI / 180) *
+          Math.sin(dLon / 2) ** 2;
+        const distKm = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return { ...l, distanceKm: Math.round(distKm * 10) / 10 };
+      });
+    }
+
+    return sendSuccess(res, result, 200, paginationMeta(total, page, limit));
   }
 );
 
@@ -117,11 +166,13 @@ router.post(
     body('tags').optional().isArray(),
     body('milkYield').optional().trim(),
     body('description').optional().trim(),
+    body('lat').optional().isFloat({ min: -90,  max: 90  }),
+    body('lng').optional().isFloat({ min: -180, max: 180 }),
   ],
   validate,
   async (req, res) => {
     const images = await uploadFiles(req.files || [], 'animals');
-    const { animal, breed, age, gender, weight, price, milkYield, description, sellerLocation, tags } = req.body;
+    const { animal, breed, age, gender, weight, price, milkYield, description, sellerLocation, tags, lat, lng } = req.body;
 
     const listing = await prisma.animalListing.create({
       data: {
@@ -135,6 +186,8 @@ router.post(
         sellerLocation,
         images,
         tags: tags || [],
+        lat:  lat  != null ? parseFloat(lat)  : null,
+        lng:  lng  != null ? parseFloat(lng)  : null,
       },
     });
 
@@ -154,7 +207,7 @@ router.put(
     if (!listing) return sendNotFound(res, 'Animal listing');
     if (listing.sellerId !== req.user.id) return sendForbidden(res);
 
-    const { animal, breed, age, gender, weight, price, milkYield, description, sellerLocation, tags, status } = req.body;
+    const { animal, breed, age, gender, weight, price, milkYield, description, sellerLocation, tags, status, lat, lng } = req.body;
     const newImages = await uploadFiles(req.files || [], 'animals');
 
     const updated = await prisma.animalListing.update({
@@ -172,6 +225,8 @@ router.put(
         ...(tags           && { tags }),
         ...(status         && { status }),
         ...(newImages.length && { images: [...listing.images, ...newImages] }),
+        ...(lat  != null && { lat:  parseFloat(lat)  }),
+        ...(lng  != null && { lng:  parseFloat(lng)  }),
       },
     });
 

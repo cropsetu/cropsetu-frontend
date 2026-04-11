@@ -28,12 +28,41 @@ export const ENV = {
   CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || '',
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || '',
 
-  // ── AI & Weather (Krishi Raksha) ───────────────────────────────────────────
+  // ── AI & Weather (Krishi Raksha + FarmMind) ────────────────────────────────
   // Gemini is FREE (15 RPM / 1 M tokens/day). Get key: https://aistudio.google.com/app/apikey
-  // If GEMINI_API_KEY is set it takes priority over OPENAI_API_KEY.
-  GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
-  OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
+  GEMINI_API_KEY:      process.env.GEMINI_API_KEY  || '',
+  GEMINI_MODEL:        process.env.GEMINI_MODEL    || 'gemini-2.5-flash',
+  OPENAI_API_KEY:      process.env.OPENAI_API_KEY  || '',
   OPENWEATHER_API_KEY: process.env.OPENWEATHER_API_KEY || '',
+
+  // ── Groq (free tier: 30 RPM / 14,400 RPD — used for all text AI tasks) ──────
+  // Get free key: https://console.groq.com
+  GROQ_API_KEY:   process.env.GROQ_API_KEY  || '',
+  GROQ_MODEL:     process.env.GROQ_MODEL    || 'llama-3.3-70b-versatile',
+
+  // ── Anthropic / Claude (second-tier fallback for text tasks) ──────────────────
+  // Models: claude-sonnet-4-6 (powerful), claude-haiku-4-5-20251001 (fast, cheap)
+  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || '',
+  ANTHROPIC_MODEL:   process.env.ANTHROPIC_MODEL   || 'claude-haiku-4-5-20251001',
+
+  // ── FastAPI AI Backend (CropGuard agentic pipeline) ───────────────────────────
+  // Run: cd AI_CROP_DISESE_DETECTION && .venv/bin/uvicorn main:app --port 8001 --reload
+  AI_BACKEND_URL: process.env.AI_BACKEND_URL || 'http://localhost:8001',
+
+  // ── Sarvam AI (Indian multilingual STT / TTS / Translation) ─────────────────
+  // Get key: https://dashboard.sarvam.ai  — supports 10+ Indian languages
+  SARVAM_API_KEY: process.env.SARVAM_API_KEY || '',
+
+  // ── Market Data (data.gov.in — FREE) ──────────────────────────────────────
+  // Get your own free key at https://data.gov.in (1-min registration)
+  DATA_GOV_API_KEY: process.env.DATA_GOV_API_KEY || '',
+
+  // ── Field-level encryption (PII: Aadhaar, PAN, bank account) ─────────────────
+  // 64-char hex string = 32 bytes. Generate with: openssl rand -hex 32
+  // REQUIRED in production — without it PII is stored unencrypted (dev warning only).
+  FIELD_ENCRYPTION_KEY: process.env.NODE_ENV === 'production'
+    ? (process.env.FIELD_ENCRYPTION_KEY || (() => { throw new Error('FIELD_ENCRYPTION_KEY is required in production'); })())
+    : (process.env.FIELD_ENCRYPTION_KEY || ''),
 
   ALLOWED_ORIGINS: (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean),
   RATE_LIMIT_WINDOW_MS: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),

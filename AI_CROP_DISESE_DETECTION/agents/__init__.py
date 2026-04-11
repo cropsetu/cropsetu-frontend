@@ -1,0 +1,1 @@
+# CropGuard — AI Agents package

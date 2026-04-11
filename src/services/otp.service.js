@@ -33,12 +33,14 @@ export async function sendOtp(phone) {
 
   if (ENV.MSG91_AUTH_KEY) {
     await sendViaMSG91(phone, otp);
-  } else {
-    // Development: print to console
-    console.log(`[OTP DEV] Phone: ${phone} | OTP: ${otp}`);
+    return { sessionId: session.id };
   }
 
-  return { sessionId: session.id };
+  // Development fallback — no SMS key configured
+  console.log(`[OTP DEV] Phone: ${phone} | OTP: ${otp}`);
+  // Return the OTP in the response so the dev app can auto-fill it.
+  // NEVER do this in production (guarded by MSG91_AUTH_KEY check above).
+  return { sessionId: session.id, devOtp: otp };
 }
 
 /**
@@ -60,7 +62,9 @@ export async function verifyOtp(phone, otp) {
     return { success: false, reason: 'OTP expired or not found. Please request a new one.' };
   }
 
-  const match = await bcrypt.compare(otp, session.otp);
+  // Dev bypass: accept '000000' when MSG91 is not configured
+  const devBypass = !ENV.MSG91_AUTH_KEY && otp === '000000';
+  const match = devBypass || await bcrypt.compare(otp, session.otp);
 
   if (!match) {
     await prisma.otpSession.update({

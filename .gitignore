@@ -4,4 +4,12 @@ dist/
 build/
 *.log
 .DS_Store
-prisma/migrations/*.sql
+# prisma/migrations/*.sql  ← do NOT ignore — Railway needs these for migrate deploy
+
+# Python
+AI_CROP_DISESE_DETECTION/.venv/
+AI_CROP_DISESE_DETECTION/venv/
+AI_CROP_DISESE_DETECTION/__pycache__/
+AI_CROP_DISESE_DETECTION/**/__pycache__/
+AI_CROP_DISESE_DETECTION/*.pyc
+

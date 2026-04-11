@@ -23,6 +23,7 @@ import {
 import prisma from '../config/db.js';
 import { sendSuccess, sendCreated, sendError, sendUnauthorized } from '../utils/response.js';
 import { ENV } from '../config/env.js';
+import logger from '../utils/logger.js';
 
 const router = Router();
 
@@ -101,7 +102,7 @@ router.post(
         user,
       });
     } catch (err) {
-      console.error('[Auth] verify-otp error:', err);
+      logger.error({ err }, '[Auth] verify-otp error');
       return sendError(res, 'Authentication failed', 500);
     }
   }

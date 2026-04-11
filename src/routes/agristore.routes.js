@@ -44,9 +44,11 @@ router.get(
     const limit = parseInt(req.query.limit || '20', 10);
     const { category, search, featured, district } = req.query;
 
+    const { subcategory } = req.query;
     const where = { isActive: true };
-    if (category) where.categoryId = category;
-    if (featured) where.isFeatured = true;
+    if (category)    where.categoryId  = category;
+    if (subcategory) where.subcategory = subcategory;
+    if (featured)    where.isFeatured  = true;
     if (search) {
       where.OR = [
         { name:        { contains: search, mode: 'insensitive' } },
@@ -160,12 +162,37 @@ router.post(
   '/orders',
   authenticate,
   [
-    body('deliveryAddress').isObject(),
     body('paymentMethod').optional().isIn(['cod', 'upi', 'card']),
+    // Accept either a saved address id OR an inline address object
+    body('deliveryAddressId').optional().isString(),
+    body('deliveryAddress').optional().isObject(),
   ],
   validate,
   async (req, res) => {
-    const { deliveryAddress, paymentMethod = 'cod', notes } = req.body;
+    let { deliveryAddress, deliveryAddressId, paymentMethod = 'cod', notes } = req.body;
+
+    // Resolve address from saved address if id provided
+    if (deliveryAddressId) {
+      const saved = await prisma.savedAddress.findFirst({
+        where: { id: deliveryAddressId, userId: req.user.id },
+      });
+      if (!saved) return sendError(res, 'Saved address not found', 400);
+      deliveryAddress = {
+        type:    saved.type,
+        name:    saved.name,
+        phone:   saved.phone,
+        flat:    saved.flat,
+        street:  saved.street,
+        city:    saved.city,
+        state:   saved.state,
+        pincode: saved.pincode,
+        ...(saved.landmark ? { landmark: saved.landmark } : {}),
+      };
+    }
+
+    if (!deliveryAddress || typeof deliveryAddress !== 'object') {
+      return sendError(res, 'deliveryAddress or deliveryAddressId is required', 400);
+    }
 
     const cartItems = await prisma.cartItem.findMany({
       where: { userId: req.user.id },
@@ -192,10 +219,13 @@ router.post(
           paymentMethod,
           notes,
           items: {
+            // sellerId is denormalised on each OrderItem so seller order queries
+            // hit the index directly instead of joining through products.
             create: cartItems.map((i) => ({
-              productId: i.productId,
-              quantity: i.quantity,
-              unitPrice: i.product.price,
+              productId:  i.productId,
+              sellerId:   i.product.sellerId || null,
+              quantity:   i.quantity,
+              unitPrice:  i.product.price,
               totalPrice: i.product.price * i.quantity,
             })),
           },
@@ -267,18 +297,58 @@ router.post(
     body('unit').notEmpty(),
     body('description').optional().trim(),
     body('mrp').optional().isFloat({ min: 0 }),
+    body('minOrderQty').optional().isInt({ min: 1 }),
     body('tags').optional().isArray(),
     body('images').optional().isArray(),
     body('district').optional().trim(),
+    body('taluka').optional().trim(),
+    body('village').optional().trim(),
     body('state').optional().trim(),
+    body('sellScope').optional().isIn(['village', 'taluka', 'district', 'state', 'all_india']),
+    body('harvestDate').optional().trim(),
+    body('subcategory').optional().trim(),
+    body('brand').optional().trim(),
+    body('manufacturer').optional().trim(),
+    body('countryOfOrigin').optional().trim(),
+    body('highlights').optional().isArray(),
+    body('specifications').optional().isObject(),
   ],
   validate,
   async (req, res) => {
-    const { name, nameHi, nameMr, categoryId, description, price, mrp, unit, stock, images = [], tags = [], district, state } = req.body;
+    const {
+      name, nameHi, nameMr, categoryId, description,
+      price, mrp, unit, stock, minOrderQty,
+      images = [], tags = [],
+      district, taluka, village, state, sellScope, harvestDate, subcategory,
+      brand, manufacturer, countryOfOrigin, highlights = [], specifications,
+    } = req.body;
+
     const cat = await prisma.category.findUnique({ where: { id: categoryId } });
     if (!cat) return sendError(res, 'Invalid category', 400);
+
     const product = await prisma.product.create({
-      data: { name, nameHi, nameMr, categoryId, description, price: parseFloat(price), mrp: mrp ? parseFloat(mrp) : null, unit, stock: parseInt(stock), images, tags, district: district || null, state: state || null, sellerId: req.user.id },
+      data: {
+        name, nameHi, nameMr, categoryId, description,
+        price:       parseFloat(price),
+        mrp:         mrp ? parseFloat(mrp) : null,
+        unit,
+        stock:       parseInt(stock),
+        minOrderQty: minOrderQty ? parseInt(minOrderQty) : 1,
+        images, tags,
+        district:    district    || null,
+        taluka:      taluka      || null,
+        village:     village     || null,
+        state:       state       || null,
+        sellScope:   sellScope   || 'district',
+        harvestDate: harvestDate || null,
+        subcategory: subcategory || null,
+        brand:           brand           || null,
+        manufacturer:    manufacturer    || null,
+        countryOfOrigin: countryOfOrigin || null,
+        highlights:      highlights,
+        specifications:  specifications  || null,
+        sellerId:    req.user.id,
+      },
       include: { category: { select: { id: true, name: true, icon: true, color: true } } },
     });
     return sendCreated(res, product);
@@ -308,26 +378,54 @@ router.put(
     body('name').optional().trim().notEmpty(),
     body('price').optional().isFloat({ min: 0.01 }),
     body('stock').optional().isInt({ min: 0 }),
+    body('minOrderQty').optional().isInt({ min: 1 }),
+    body('sellScope').optional().isIn(['village', 'taluka', 'district', 'state', 'all_india']),
+    body('harvestDate').optional().trim(),
+    body('brand').optional().trim(),
+    body('manufacturer').optional().trim(),
+    body('countryOfOrigin').optional().trim(),
+    body('highlights').optional().isArray(),
+    body('specifications').optional().isObject(),
   ],
   validate,
   async (req, res) => {
     const product = await prisma.product.findFirst({ where: { id: req.params.id, sellerId: req.user.id } });
     if (!product) return sendNotFound(res, 'Product');
-    const { name, nameHi, nameMr, description, price, mrp, unit, stock, images, tags, isActive, district, state } = req.body;
+
+    const {
+      name, nameHi, nameMr, description,
+      price, mrp, unit, stock, minOrderQty,
+      images, tags, isActive,
+      district, taluka, village, state, sellScope, harvestDate,
+      brand, manufacturer, countryOfOrigin, highlights, specifications,
+    } = req.body;
+
     const data = {};
-    if (name        !== undefined) data.name        = name;
-    if (nameHi      !== undefined) data.nameHi      = nameHi;
-    if (nameMr      !== undefined) data.nameMr      = nameMr;
-    if (description !== undefined) data.description = description;
-    if (price       !== undefined) data.price       = parseFloat(price);
-    if (mrp         !== undefined) data.mrp         = mrp ? parseFloat(mrp) : null;
-    if (unit        !== undefined) data.unit        = unit;
-    if (stock       !== undefined) data.stock       = parseInt(stock);
-    if (images      !== undefined) data.images      = images;
-    if (tags        !== undefined) data.tags        = tags;
-    if (isActive    !== undefined) data.isActive    = isActive;
-    if (district    !== undefined) data.district    = district || null;
-    if (state       !== undefined) data.state       = state || null;
+    if (name            !== undefined) data.name            = name;
+    if (nameHi          !== undefined) data.nameHi          = nameHi;
+    if (nameMr          !== undefined) data.nameMr          = nameMr;
+    if (description     !== undefined) data.description     = description;
+    if (price           !== undefined) data.price           = parseFloat(price);
+    if (mrp             !== undefined) data.mrp             = mrp ? parseFloat(mrp) : null;
+    if (unit            !== undefined) data.unit            = unit;
+    if (stock           !== undefined) data.stock           = parseInt(stock);
+    if (minOrderQty     !== undefined) data.minOrderQty     = parseInt(minOrderQty);
+    if (images          !== undefined) data.images          = images;
+    if (tags            !== undefined) data.tags            = tags;
+    if (isActive        !== undefined) data.isActive        = isActive;
+    if (district        !== undefined) data.district        = district        || null;
+    if (taluka          !== undefined) data.taluka          = taluka          || null;
+    if (village         !== undefined) data.village         = village         || null;
+    if (state           !== undefined) data.state           = state           || null;
+    if (sellScope       !== undefined) data.sellScope       = sellScope;
+    if (harvestDate     !== undefined) data.harvestDate     = harvestDate     || null;
+    if (brand           !== undefined) data.brand           = brand           || null;
+    if (manufacturer    !== undefined) data.manufacturer    = manufacturer    || null;
+    if (countryOfOrigin !== undefined) data.countryOfOrigin = countryOfOrigin || null;
+    if (highlights      !== undefined) data.highlights      = highlights;
+    if (specifications  !== undefined) data.specifications  = specifications  || null;
+    if (req.body.subcategory !== undefined) data.subcategory = req.body.subcategory || null;
+
     const updated = await prisma.product.update({
       where: { id: req.params.id },
       data,
@@ -345,17 +443,21 @@ router.delete('/seller/products/:id', authenticate, async (req, res) => {
 });
 
 router.get('/seller/stats', authenticate, async (req, res) => {
-  const [totalProducts, activeProducts, totalOrderItems] = await Promise.all([
+  const [totalProducts, activeProducts, revenueAgg] = await Promise.all([
     prisma.product.count({ where: { sellerId: req.user.id } }),
     prisma.product.count({ where: { sellerId: req.user.id, isActive: true } }),
-    prisma.orderItem.findMany({
-      where: { product: { sellerId: req.user.id } },
-      select: { totalPrice: true, quantity: true },
+    // Uses denormalised sellerId index — no join through products
+    prisma.orderItem.aggregate({
+      where: { sellerId: req.user.id },
+      _sum: { totalPrice: true, quantity: true },
     }),
   ]);
-  const totalRevenue = totalOrderItems.reduce((s, i) => s + i.totalPrice, 0);
-  const totalSold    = totalOrderItems.reduce((s, i) => s + i.quantity,   0);
-  return sendSuccess(res, { totalProducts, activeProducts, totalRevenue, totalSold });
+  return sendSuccess(res, {
+    totalProducts,
+    activeProducts,
+    totalRevenue: revenueAgg._sum.totalPrice || 0,
+    totalSold:    revenueAgg._sum.quantity   || 0,
+  });
 });
 
 // ── Seller: update order status ───────────────────────────────────────────────
@@ -374,8 +476,9 @@ router.put(
     const { status }  = req.body;
 
     // Ensure this order actually has items from this seller
+    // Uses the denormalised sellerId index — no product join needed
     const item = await prisma.orderItem.findFirst({
-      where: { orderId, product: { sellerId: req.user.id } },
+      where: { orderId, sellerId: req.user.id },
     });
     if (!item) return sendNotFound(res, 'Order');
 
@@ -391,24 +494,26 @@ router.put(
 router.get('/seller/orders', authenticate, async (req, res) => {
   const page  = parseInt(req.query.page  || '1', 10);
   const limit = parseInt(req.query.limit || '15', 10);
-  // Find all order-items whose product belongs to this seller
-  const items = await prisma.orderItem.findMany({
-    where: { product: { sellerId: req.user.id } },
-    include: {
-      product: { select: { id: true, name: true, images: true, unit: true } },
-      order: {
-        select: {
-          id: true, status: true, paymentMethod: true, paymentStatus: true,
-          deliveryAddress: true, createdAt: true,
-          user: { select: { id: true, name: true, phone: true } },
+  // Uses the denormalised sellerId index — O(1) lookup, no join through products
+  const [items, total] = await Promise.all([
+    prisma.orderItem.findMany({
+      where: { sellerId: req.user.id },
+      include: {
+        product: { select: { id: true, name: true, images: true, unit: true } },
+        order: {
+          select: {
+            id: true, status: true, paymentMethod: true, paymentStatus: true,
+            deliveryAddress: true, createdAt: true,
+            user: { select: { id: true, name: true, phone: true } },
+          },
         },
       },
-    },
-    orderBy: { order: { createdAt: 'desc' } },
-    skip: (page - 1) * limit,
-    take: limit,
-  });
-  const total = await prisma.orderItem.count({ where: { product: { sellerId: req.user.id } } });
+      orderBy: { order: { createdAt: 'desc' } },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.orderItem.count({ where: { sellerId: req.user.id } }),
+  ]);
   return sendSuccess(res, items, 200, paginationMeta(total, page, limit));
 });
 

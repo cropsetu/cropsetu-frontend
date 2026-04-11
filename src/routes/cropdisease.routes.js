@@ -14,13 +14,14 @@ import { sendSuccess, sendError } from '../utils/response.js';
 import { getWeatherData } from '../services/weather.service.js';
 import { getSoilData } from '../services/soildata.service.js';
 import { predictCropDisease } from '../services/ai.predict.service.js';
+import prisma from '../config/db.js';
 
 const router = Router();
 
 // ─── Multer — store to OS temp dir ───────────────────────────────────────────
 const upload = multer({
   dest: os.tmpdir(),
-  limits: { fileSize: 5 * 1024 * 1024, files: 3 },  // 5 MB per image, max 3
+  limits: { fileSize: 5 * 1024 * 1024, files: 4 },  // 5 MB per image, max 4
   fileFilter: (_req, file, cb) => {
     const allowed = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
     cb(null, allowed.includes(file.mimetype));
@@ -38,7 +39,7 @@ function cleanupFiles(files = []) {
 router.post(
   '/predict',
   authenticate,
-  upload.array('images', 3),
+  upload.array('images', 4),
   async (req, res) => {
     const uploadedFiles = req.files || [];
 
@@ -77,6 +78,9 @@ router.post(
         }
       }
 
+      // Parse symptomOnsetDays (optional integer)
+      const symptomOnsetDays = body.symptomOnsetDays ? parseInt(body.symptomOnsetDays, 10) || null : null;
+
       // ── 2. Validate required fields ────────────────────────────────────────
       if (!pincode || !cropType || !growthStage) {
         cleanupFiles(uploadedFiles);
@@ -104,7 +108,14 @@ router.post(
       }
 
       // ── 4. Call AI prediction ──────────────────────────────────────────────
-      const imagePaths = uploadedFiles.map((f) => f.path);
+      // Build typed image objects — client sends imageType_0, imageType_1, ... alongside each file
+      // Valid types: field_view | whole_plant | close_up | underside | other
+      const VALID_IMAGE_TYPES = ['field_view', 'whole_plant', 'close_up', 'underside', 'other'];
+      const images = uploadedFiles.map((f, idx) => {
+        const rawType = body[`imageType_${idx}`] || body.imageType || 'other';
+        const type = VALID_IMAGE_TYPES.includes(rawType) ? rawType : 'other';
+        return { path: f.path, type };
+      });
 
       const prediction = await predictCropDisease(
         {
@@ -112,16 +123,38 @@ router.post(
           cropType, growthStage, variety, sowingDate, fieldArea,
           irrigationMethod, lastIrrigatedDate, fertilizerType, prevCrop, waterQuality,
           soilPh, organicCarbon, nitrogenLevel, phosphorusLevel, potassiumLevel, soilMoisture,
-          lastFungicideDate, symptoms,
+          lastFungicideDate, symptoms, symptomOnsetDays,
           weather, soilData: soil,
         },
-        imagePaths,
+        images,
       );
 
       // ── 5. Cleanup temp images ─────────────────────────────────────────────
       cleanupFiles(uploadedFiles);
 
-      // ── 6. Return enriched response ────────────────────────────────────────
+      // ── 6. Persist report to database ─────────────────────────────────────
+      // Save async — don't block the response on a DB write
+      prisma.cropDiseaseReport.create({
+        data: {
+          userId:          req.user.id,
+          pincode:         pincodeNum,
+          cropType,
+          growthStage,
+          variety:         variety    || null,
+          fieldArea:       fieldArea  || null,
+          symptoms:        Array.isArray(symptoms) ? symptoms : [],
+          imageCount:      images.length,
+          overallRisk:     prediction.overall_risk     ?? prediction.overallRisk     ?? 0,
+          riskLevel:       prediction.risk_level       ?? prediction.riskLevel       ?? 'UNKNOWN',
+          primaryDisease:  prediction.primary_disease?.name ?? prediction.primaryDisease?.name ?? 'Unknown',
+          confidenceScore: prediction.confidence_score ?? prediction.confidenceScore ?? 0,
+          fullReport:      prediction,
+          weatherSnapshot: weather ?? null,
+          soilSnapshot:    soil    ?? null,
+        },
+      }).catch((err) => console.error('[CropDisease] Failed to save report:', err.message));
+
+      // ── 7. Return enriched response ────────────────────────────────────────
       return sendSuccess(res, {
         ...prediction,
         weatherSummary: weather
@@ -164,6 +197,41 @@ router.post(
     }
   },
 );
+
+// ─── GET /api/v1/crop-disease/reports ────────────────────────────────────────
+// List the authenticated user's past AI analysis reports (newest first)
+router.get('/reports', authenticate, async (req, res) => {
+  const page  = parseInt(req.query.page  || '1', 10);
+  const limit = parseInt(req.query.limit || '10', 10);
+
+  const [reports, total] = await Promise.all([
+    prisma.cropDiseaseReport.findMany({
+      where: { userId: req.user.id },
+      select: {
+        id: true, pincode: true, cropType: true, growthStage: true, variety: true,
+        overallRisk: true, riskLevel: true, primaryDisease: true,
+        confidenceScore: true, imageCount: true, createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.cropDiseaseReport.count({ where: { userId: req.user.id } }),
+  ]);
+
+  const meta = { total, page, limit, totalPages: Math.ceil(total / limit) };
+  return sendSuccess(res, reports, 200, meta);
+});
+
+// ─── GET /api/v1/crop-disease/reports/:id ────────────────────────────────────
+// Full report detail including complete AI JSON
+router.get('/reports/:id', authenticate, async (req, res) => {
+  const report = await prisma.cropDiseaseReport.findFirst({
+    where: { id: req.params.id, userId: req.user.id },
+  });
+  if (!report) return sendError(res, 'Report not found', 404);
+  return sendSuccess(res, report);
+});
 
 // ─── GET /api/v1/crop-disease/soil-info?pincode=413704 ───────────────────────
 // Quick endpoint to preview soil data for a pincode (no AI, no auth needed)
