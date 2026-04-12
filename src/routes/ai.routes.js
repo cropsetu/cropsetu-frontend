@@ -573,11 +573,16 @@ router.post('/scan', authenticate, (req, res, next) => {
 
   // ── Free-user daily limit enforcement ────────────────────────────────────
   if (req.user.role === 'FARMER') {
-    const limitErr = await checkScanLimits(req.user.id);
-    if (limitErr) {
-      try { if (file?.path) fs.unlinkSync(file.path); } catch { /* ignore */ }
-      console.log(`[Express/Scan] ✗ Rate limit hit for user=${req.user.id}: ${limitErr}`);
-      return sendError(res, limitErr, 429);
+    try {
+      const limitErr = await checkScanLimits(req.user.id);
+      if (limitErr) {
+        try { if (file?.path) fs.unlinkSync(file.path); } catch { /* ignore */ }
+        console.log(`[Express/Scan] ✗ Rate limit hit for user=${req.user.id}: ${limitErr}`);
+        return sendError(res, limitErr, 429);
+      }
+    } catch (limitCheckErr) {
+      console.warn('[AI Scan] Limit check failed (non-fatal, allowing scan):', limitCheckErr.message);
+      // fail-open: allow the scan if usage table is unavailable
     }
   }
 

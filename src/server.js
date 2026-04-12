@@ -103,4 +103,13 @@ async function shutdown(signal) {
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT',  () => shutdown('SIGINT'));
 
+// Prevent unhandled async errors from crashing the process.
+// Express 4 cannot catch async errors in route handlers that lack try/catch.
+// This is the safety net — individual handlers should still use try/catch.
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('[Server] Unhandled promise rejection — %s', reason?.message || reason);
+  logger.error({ reason }, '[Server] Stack:');
+  // Do NOT exit — keep the server running to serve other requests
+});
+
 start();
