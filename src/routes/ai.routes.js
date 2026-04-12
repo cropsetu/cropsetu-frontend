@@ -659,63 +659,72 @@ router.post('/scan', authenticate, (req, res, next) => {
       return sendSuccess(res, { ...diagnosis, sessionId: null, weatherUsed: !isNaN(lat) });
     }
 
-    // ── Create scan chat session for follow-up Q&A ────────────────────────────
+    // ── Create scan chat session for follow-up Q&A (non-blocking — DB failures must not kill response) ──
     const diseaseName = diagnosis.disease || 'Crop Analysis';
     const cropName    = farmCtx.cropName  || diagnosis.crop || rawDiagnosis?.farm?.crop || 'Unknown crop';
 
-    const convo = await prisma.aIConversation.create({
-      data: {
-        userId:        req.user.id,
-        title:         `Scan: ${diseaseName} — ${cropName}`,
-        language:      farmCtx.language || req.user.language || 'en',
-        isScanSession: true,
-        messages: {
-          create: [{
-            role:           'assistant',
-            content:        `Diagnosis: **${diseaseName}** (${diagnosis.confidence || 0}% confidence)\n\nYou can now ask follow-up questions about this diagnosis.`,
-            messageType:    'diagnosis',
-            structuredData: diagnosis,
-            language:       farmCtx.language || 'en',
-          }],
+    let sessionId = null;
+    try {
+      const convo = await prisma.aIConversation.create({
+        data: {
+          userId:        req.user.id,
+          title:         `Scan: ${diseaseName} — ${cropName}`,
+          language:      farmCtx.language || req.user.language || 'en',
+          isScanSession: true,
+          messages: {
+            create: [{
+              role:           'assistant',
+              content:        `Diagnosis: **${diseaseName}** (${diagnosis.confidence || 0}% confidence)\n\nYou can now ask follow-up questions about this diagnosis.`,
+              messageType:    'diagnosis',
+              structuredData: diagnosis,
+              language:       farmCtx.language || 'en',
+            }],
+          },
+          messageCount: 1,
         },
-        messageCount: 1,
-      },
-    });
+      });
+      sessionId = convo.id;
 
-    // ── Persist CropDiseaseReport ─────────────────────────────────────────────
-    const riskLevel = (rawDiagnosis?.risk_level || diagnosis.severity || 'low').toUpperCase();
-    const riskScore = riskLevel === 'CRITICAL' ? 95 : riskLevel === 'HIGH' ? 75
-      : riskLevel === 'MODERATE' ? 45 : 15;
-    const confScore = (diagnosis.confidence || 0) / 100;
+      // ── Persist CropDiseaseReport (fire-and-forget) ─────────────────────────
+      const riskLevel = (rawDiagnosis?.risk_level || diagnosis.severity || 'low').toUpperCase();
+      const riskScore = riskLevel === 'CRITICAL' ? 95 : riskLevel === 'HIGH' ? 75
+        : riskLevel === 'MODERATE' ? 45 : 15;
+      const confScore = (diagnosis.confidence || 0) / 100;
 
-    prisma.cropDiseaseReport.create({
-      data: {
-        userId:          req.user.id,
-        pincode:         req.user.pincode || farmCtx.pincode || '000000',
-        cropType:        farmCtx.cropName || cropName,
-        growthStage:     farmCtx.cropAge != null ? String(farmCtx.cropAge) : 'unknown',
-        variety:         farmCtx.variety || null,
-        fieldArea:       farmCtx.landSize || null,
-        symptoms:        Array.isArray(farmCtx.symptoms) ? farmCtx.symptoms : [],
-        imageCount:      1,
-        overallRisk:     riskScore,
-        riskLevel,
-        primaryDisease:  diseaseName,
-        confidenceScore: confScore,
-        diagnosisMethod: 'agentic-vision',
-        modelAgreement:  null,
-        fullReport:      rawDiagnosis,
-        weatherSnapshot: rawDiagnosis?.weather_outlook || null,
-        conversationId:  convo.id,
-      },
-    }).catch(e => console.warn('[AI Scan] DB save failed:', e.message));
+      prisma.cropDiseaseReport.create({
+        data: {
+          userId:          req.user.id,
+          pincode:         req.user.pincode || farmCtx.pincode || '000000',
+          cropType:        farmCtx.cropName || cropName,
+          growthStage:     farmCtx.cropAge != null ? String(farmCtx.cropAge) : 'unknown',
+          variety:         farmCtx.variety || null,
+          fieldArea:       farmCtx.landSize || null,
+          symptoms:        Array.isArray(farmCtx.symptoms) ? farmCtx.symptoms : [],
+          imageCount:      1,
+          overallRisk:     riskScore,
+          riskLevel,
+          primaryDisease:  diseaseName,
+          confidenceScore: confScore,
+          diagnosisMethod: 'agentic-vision',
+          modelAgreement:  null,
+          fullReport:      rawDiagnosis,
+          weatherSnapshot: rawDiagnosis?.weather_outlook || null,
+          conversationId:  sessionId,
+        },
+      }).catch(e => console.warn('[AI Scan] CropDiseaseReport save failed:', e.message));
+    } catch (dbErr) {
+      console.warn('[AI Scan] DB session create failed (returning diagnosis without sessionId):', dbErr.message);
+    }
 
-    console.log(`[Express/Scan] ✓ Sending response to app — total time ${Date.now()-t0}ms`);
+    // Strip large _fullReport from the response payload — frontend does not use it
+    const { _fullReport, ...diagnosisForClient } = diagnosis;
+
+    console.log(`[Express/Scan] ✓ Sending response to app — sessionId=${sessionId} total time ${Date.now()-t0}ms`);
     console.log(`${'='.repeat(60)}\n`);
 
     return sendSuccess(res, {
-      ...diagnosis,           // flat normalized shape for DiagnosisResultScreen
-      sessionId:   convo.id,
+      ...diagnosisForClient,
+      sessionId,
       weatherUsed: !isNaN(lat),
     });
 
