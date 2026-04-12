@@ -604,14 +604,14 @@ router.post('/scan', authenticate, (req, res, next) => {
     console.log(`[Express/Scan]   GPS          : lat=${isNaN(lat) ? 'none' : lat}  lon=${isNaN(lon) ? 'none' : lon}`);
 
     // ── Proxy to FastAPI 5-agent pipeline ────────────────────────────────────
-    console.log(`[Express/Scan]   → Calling FastAPI /ai/scan (timeout 120s)...`);
+    console.log(`[Express/Scan]   → Calling FastAPI /ai/scan (timeout 180s)...`);
     const rawDiagnosis = await callFastAPI('/ai/scan', {
       image_base64: base64,
       mime_type:    mimeType,
       farm_ctx:     farmCtx,
       lat:          !isNaN(lat) ? lat : null,
       lon:          !isNaN(lon) ? lon : null,
-    }, req.user.id, 120_000);   // 2-min timeout for 5-agent pipeline
+    }, req.user.id, 180_000);   // 3-min timeout for 5-agent pipeline
 
     console.log(`[Express/Scan]   ← FastAPI responded in ${Date.now()-t0}ms`);
     console.log(`[Express/Scan]   rawDiagnosis keys:`, Object.keys(rawDiagnosis || {}));

@@ -47,16 +47,17 @@ async def call_gemini_vision(
     images_b64: list[dict],          # [{"data": str, "mime_type": str}]
     api_key: str,
     model: str = GEMINI_VISION_MODEL,
-    max_retries: int = 3,
+    max_retries: int = 2,
+    groq_api_key: str = "",          # if provided, used as fallback on 429
 ) -> tuple[str, dict]:
-    """Returns (text, token_info)"""
+    """Returns (text, token_info). Falls back to Groq vision on Gemini 429."""
     parts: list[dict] = [{"text": text_context}]
     for img in images_b64:
         parts.append({"inline_data": {"mime_type": img["mime_type"], "data": img["data"]}})
 
     for attempt in range(1, max_retries + 1):
         try:
-            async with httpx.AsyncClient(timeout=90) as client:
+            async with httpx.AsyncClient(timeout=60) as client:
                 resp = await client.post(
                     f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
                     params={"key": api_key},
@@ -67,11 +68,16 @@ async def call_gemini_vision(
                             "maxOutputTokens": 4096,
                             "temperature": 0.0,
                             "responseMimeType": "application/json",
+                            "thinkingConfig": {"thinkingBudget": 0},
                         },
                     },
                 )
                 if resp.status_code == 429:
-                    wait = 20 * attempt
+                    # Try Groq vision as immediate fallback before waiting
+                    if groq_api_key and attempt == 1:
+                        logger.warning("Gemini Vision 429 — switching to Groq vision fallback")
+                        return await call_groq_vision(system_prompt, text_context, images_b64, groq_api_key)
+                    wait = 5 * attempt
                     logger.warning("Gemini Vision 429 rate limit — waiting %ds (attempt %d/%d)", wait, attempt, max_retries)
                     if attempt < max_retries:
                         await asyncio.sleep(wait)
@@ -94,7 +100,7 @@ async def call_gemini_vision(
         except httpx.HTTPStatusError:
             if attempt == max_retries:
                 raise
-            await asyncio.sleep(20 * attempt)
+            await asyncio.sleep(5 * attempt)
 
     raise RuntimeError("Gemini vision: max retries exceeded")
 
@@ -122,6 +128,7 @@ async def call_gemini_text(
                             "maxOutputTokens": 2048,
                             "temperature": 0.0,
                             "responseMimeType": "application/json",
+                            "thinkingConfig": {"thinkingBudget": 0},
                         },
                     },
                 )
@@ -216,3 +223,55 @@ async def call_groq_text(
             raise
 
     raise RuntimeError("Groq: max retries exceeded")
+
+
+# ── Groq vision (llama-3.2-11b-vision — fallback when Gemini rate-limits) ────
+
+GROQ_VISION_MODEL = "llama-3.2-11b-vision-preview"
+
+async def call_groq_vision(
+    system_prompt: str,
+    text_context: str,
+    images_b64: list[dict],          # [{"data": str, "mime_type": str}]
+    api_key: str,
+    model: str = GROQ_VISION_MODEL,
+) -> tuple[str, dict]:
+    """Returns (text, token_info). Used as Gemini rate-limit fallback."""
+    content: list[dict] = [{"type": "text", "text": text_context}]
+    for img in images_b64[:1]:      # Groq vision accepts 1 image at a time
+        content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:{img['mime_type']};base64,{img['data']}"},
+        })
+
+    try:
+        async with httpx.AsyncClient(timeout=45) as client:
+            resp = await client.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt + "\n\nIMPORTANT: Respond with valid JSON only."},
+                        {"role": "user",   "content": content},
+                    ],
+                    "temperature": 0.0,
+                    "max_tokens":  4096,
+                    "response_format": {"type": "json_object"},
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+
+            usage = data.get("usage", {})
+            inp   = usage.get("prompt_tokens",     0)
+            out   = usage.get("completion_tokens", 0)
+            tot   = usage.get("total_tokens",      inp + out)
+            token_info = {"model": model, "input_tokens": inp, "output_tokens": out,
+                          "total_tokens": tot, "cost_usd": 0.0}
+            logger.info("Groq Vision tokens: input=%d output=%d", inp, out)
+            return data["choices"][0]["message"]["content"].strip(), token_info
+
+    except Exception as exc:
+        logger.warning("Groq Vision failed: %s", exc)
+        raise

@@ -14,7 +14,7 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-from config import GEMINI_API_KEY, DIAGNOSIS_CONF_THRESHOLD, DIAGNOSIS_ESCALATE_BELOW, MAX_DIAGNOSIS_RETRIES
+from config import GEMINI_API_KEY, GROQ_API_KEY, DIAGNOSIS_CONF_THRESHOLD, DIAGNOSIS_ESCALATE_BELOW, MAX_DIAGNOSIS_RETRIES
 from agents.llm_utils import call_gemini_vision, empty_token_info
 
 SYSTEM_PROMPT = """You are Dr. KrishiGuard, an expert plant pathologist AI with 25+ years in Indian agriculture.
@@ -227,7 +227,7 @@ async def run_disease_diagnosis_agent(
 
     for attempt in range(1, MAX_DIAGNOSIS_RETRIES + 1):
         try:
-            raw, tok = await call_gemini_vision(SYSTEM_PROMPT, context, images_b64, GEMINI_API_KEY)
+            raw, tok = await call_gemini_vision(SYSTEM_PROMPT, context, images_b64, GEMINI_API_KEY, groq_api_key=GROQ_API_KEY)
             # Accumulate tokens across retries
             accumulated_tokens["input_tokens"]  += tok["input_tokens"]
             accumulated_tokens["output_tokens"] += tok["output_tokens"]
