@@ -72,17 +72,21 @@ async def call_gemini_vision(
                         },
                     },
                 )
-                if resp.status_code == 429:
-                    # Try Groq vision as immediate fallback before waiting
-                    if groq_api_key and attempt == 1:
-                        logger.warning("Gemini Vision 429 — switching to Groq vision fallback")
+                # Any non-2xx → log the real error and use Groq fallback
+                if not resp.is_success:
+                    try:
+                        err_msg = resp.json().get("error", {}).get("message", resp.text[:200])
+                    except Exception:
+                        err_msg = resp.text[:200]
+                    logger.warning(
+                        "Gemini Vision HTTP %d: %s (attempt %d/%d)",
+                        resp.status_code, err_msg, attempt, max_retries
+                    )
+                    if groq_api_key:
+                        logger.warning("Gemini Vision unavailable — switching to Groq vision fallback")
                         return await call_groq_vision(system_prompt, text_context, images_b64, groq_api_key)
-                    wait = 5 * attempt
-                    logger.warning("Gemini Vision 429 rate limit — waiting %ds (attempt %d/%d)", wait, attempt, max_retries)
-                    if attempt < max_retries:
-                        await asyncio.sleep(wait)
-                        continue
-                resp.raise_for_status()
+                    resp.raise_for_status()  # raise if no Groq key configured
+
                 data = resp.json()
 
                 usage = data.get("usageMetadata", {})
@@ -97,7 +101,11 @@ async def call_gemini_vision(
                 text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
                 return text, token_info
 
-        except httpx.HTTPStatusError:
+        except httpx.HTTPStatusError as exc:
+            logger.warning("Gemini Vision request failed: %s", exc)
+            if groq_api_key:
+                logger.warning("Gemini Vision exception — switching to Groq vision fallback")
+                return await call_groq_vision(system_prompt, text_context, images_b64, groq_api_key)
             if attempt == max_retries:
                 raise
             await asyncio.sleep(5 * attempt)

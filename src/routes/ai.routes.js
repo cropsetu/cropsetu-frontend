@@ -721,12 +721,20 @@ router.post('/scan', authenticate, (req, res, next) => {
 
   } catch (err) {
     try { if (file?.path) fs.unlinkSync(file.path); } catch { /* ignore */ }
-    console.error(`[Express/Scan] ✗ ERROR after ${Date.now()-t0}ms:`, err.message);
-    if (err.status === 503)
-      return sendError(res, 'AI scan service unavailable — is FastAPI running?', 503);
-    if (err.name === 'AbortError')
-      return sendError(res, 'Scan timed out. Image analysis can take up to 2 minutes — please try again.', 504);
-    return sendError(res, 'Scan failed. Please try again.', 500);
+    const elapsed = Date.now() - t0;
+    console.error(`[Express/Scan] ✗ ERROR after ${elapsed}ms — ${err.name}: ${err.message}`);
+    console.error(`[Express/Scan]   status=${err.status}  stack=${err.stack?.split('\n')[1]}`);
+
+    if (err.status === 503 || err.message?.includes('FastAPI'))
+      return sendError(res, 'AI service is starting up — please wait 30 seconds and try again.', 503);
+    if (err.status === 429 || err.message?.includes('rate limit') || err.message?.includes('quota'))
+      return sendError(res, 'AI service is busy (rate limit). Please wait 1 minute and try again.', 429);
+    if (err.name === 'AbortError' || elapsed >= 175_000)
+      return sendError(res, 'Scan timed out after 3 minutes. Please try with a smaller/clearer photo.', 504);
+    if (err.status === 400 && err.message?.includes('image'))
+      return sendError(res, 'Image could not be read. Please take a new photo and try again.', 400);
+
+    return sendError(res, `Scan failed: ${err.message || 'Unknown error'}. Please try again.`, 500);
   }
 });
 

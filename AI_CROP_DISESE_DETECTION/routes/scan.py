@@ -84,10 +84,16 @@ async def ai_scan(
         return {"success": True, "data": report, "message": "Diagnosis complete"}
 
     except Exception as exc:
-        logger.exception("Scan endpoint error")
+        err_str = str(exc)
+        logger.exception("Scan endpoint error: %s", err_str)
+        # Surface specific causes so the Express layer can pass them to the app
+        if "429" in err_str or "rate" in err_str.lower() or "quota" in err_str.lower():
+            raise HTTPException(status_code=429, detail=f"AI rate limit: {err_str[:200]}")
+        if "GEMINI_API_KEY" in err_str:
+            raise HTTPException(status_code=503, detail="Gemini API key not configured")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Scan failed — please try again. If the problem persists, contact support.",
+            detail=f"Scan failed: {err_str[:300]}",
         )
 
 

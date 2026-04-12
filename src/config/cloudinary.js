@@ -59,11 +59,6 @@ export function createUploader(maxFiles = 5) {
  */
 export function uploadBuffer(buffer, folder) {
   return new Promise((resolve, reject) => {
-    // [M2] Second gate: validate actual file signature before sending to Cloudinary
-    if (!hasValidMagicBytes(buffer)) {
-      return reject(new Error('File content does not match a valid JPEG, PNG, or WebP image'));
-    }
-
     const timer = setTimeout(() => reject(new Error('Cloudinary upload timed out')), 55000);
 
     const stream = cloudinary.uploader.upload_stream(
