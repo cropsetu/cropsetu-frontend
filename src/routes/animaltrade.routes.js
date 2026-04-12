@@ -171,27 +171,32 @@ router.post(
   ],
   validate,
   async (req, res) => {
-    const images = await uploadFiles(req.files || [], 'animals');
-    const { animal, breed, age, gender, weight, price, milkYield, description, sellerLocation, tags, lat, lng } = req.body;
+    try {
+      const images = await uploadFiles(req.files || [], 'animals');
+      const { animal, breed, age, gender, weight, price, milkYield, description, sellerLocation, tags, lat, lng } = req.body;
 
-    const listing = await prisma.animalListing.create({
-      data: {
-        sellerId: req.user.id,
-        animal, breed, age,
-        gender: gender,
-        weight,
-        price: parseFloat(price),
-        milkYield: milkYield || null,
-        description,
-        sellerLocation,
-        images,
-        tags: tags || [],
-        lat:  lat  != null ? parseFloat(lat)  : null,
-        lng:  lng  != null ? parseFloat(lng)  : null,
-      },
-    });
+      const listing = await prisma.animalListing.create({
+        data: {
+          sellerId: req.user.id,
+          animal, breed, age,
+          gender: gender,
+          weight,
+          price: parseFloat(price),
+          milkYield: milkYield || null,
+          description,
+          sellerLocation,
+          images,
+          tags: tags || [],
+          lat:  lat  != null ? parseFloat(lat)  : null,
+          lng:  lng  != null ? parseFloat(lng)  : null,
+        },
+      });
 
-    return sendCreated(res, listing);
+      return sendCreated(res, listing);
+    } catch (err) {
+      console.error('[Animals] POST error:', err.message);
+      return sendError(res, err.message || 'Failed to create listing', 500);
+    }
   }
 );
 
