@@ -42,6 +42,10 @@ TREATMENT_REL_THRESHOLD   = 0.8
 MAX_IMAGE_RETRIES     = 3
 MAX_DIAGNOSIS_RETRIES = 3
 
+# ── AgriPredict ───────────────────────────────────────────────────────────────
+DATA_GOV_API_KEY: str = os.environ.get("DATA_GOV_API_KEY", "")
+DATABASE_URL:     str = os.environ.get("DATABASE_URL", "")
+
 # ── Service ───────────────────────────────────────────────────────────────────
 API_HOST = os.environ.get("CROPGUARD_HOST", "0.0.0.0")
 API_PORT = int(os.environ.get("CROPGUARD_PORT", "8001"))

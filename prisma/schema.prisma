@@ -1300,6 +1300,51 @@ model MandiPrice {
   @@map("mandi_prices")
 }
 
+// ── AgriPredict: Claude prediction cache (one per state+district+commodity+month) ──
+model PredictionCache {
+  id              String   @id @default(uuid())
+  state           String
+  district        String
+  commodity       String
+  predictionMonth String                        // Format: 'YYYY-MM'
+
+  // Prediction results (JSON)
+  priceTrend      String                        // JSON: { min, max, expected, trend, trend_percentage }
+  analysis        String                        // Full LLM JSON response text
+  confidence      String                        // low | medium | high
+  nearbyMarkets   String?                       // JSON: array of nearby market summaries
+
+  // Data provenance
+  dataFromDate    DateTime?
+  dataToDate      DateTime?
+  recordCount     Int       @default(0)
+
+  createdAt       DateTime  @default(now())
+  expiresAt       DateTime                      // 1st of next month
+
+  @@unique([state, district, commodity, predictionMonth])
+  @@index([state, district, commodity, predictionMonth])
+  @@index([expiresAt])
+  @@map("prediction_cache")
+}
+
+// ── AgriPredict: Data sync log ─────────────────────────────────────────────────
+model PriceDataSync {
+  id             String    @id @default(uuid())
+  syncType       String                         // 'backfill' | 'daily'
+  state          String?
+  commodity      String?
+  recordsFetched Int       @default(0)
+  status         String                         // 'running' | 'completed' | 'failed'
+  errorMessage   String?
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+
+  @@index([syncType, status])
+  @@index([startedAt(sort: Desc)])
+  @@map("price_data_sync")
+}
+
 // ── Price Alerts (farmer-set mandi price alerts) ──────────────────────────────
 model PriceAlert {
   id                 String   @id @default(uuid())

@@ -36,6 +36,20 @@ function memSet(k, data) {
   _mem.set(k, { data, exp: Date.now() + MEM_TTL_MS });
 }
 
+// ── State name normaliser (data.gov.in uses slightly different spellings) ─────
+const STATE_NAME_MAP = {
+  'Jammu and Kashmir':                        'Jammu And Kashmir',
+  'Dadra and Nagar Haveli and Daman and Diu': 'Dadra And Nagar Haveli And Daman And Diu',
+  'Andaman and Nicobar Islands':              'Andaman And Nicobar',
+};
+// UTs/states with no agricultural mandi data on data.gov.in
+const NO_MANDI_STATES = new Set([
+  'Ladakh', 'Lakshadweep',
+  'Andaman and Nicobar Islands',
+  'Dadra and Nagar Haveli and Daman and Diu',
+]);
+function normaliseState(s) { return STATE_NAME_MAP[s] || s; }
+
 // ── Commodity name normaliser (API uses different names) ─────────────────────
 const COMMODITY_MAP = {
   soybean: 'Soyabean',     soybeans: 'Soyabean',
@@ -69,7 +83,7 @@ async function fetchFromDataGovIn(commodity, state, district = null) {
     format:    'json',
     limit:     50,
     'filters[commodity]': apiCommodity,
-    'filters[state]':     state,
+    'filters[state]':     normaliseState(state),
   };
   if (district) params['filters[district]'] = district;
 
@@ -124,41 +138,69 @@ async function persistToDB(records) {
   }
 }
 
-// ── Main: get prices (live → L1 mem → DB cache) ───────────────────────────────
+// ── DB lookup helper (used as both primary and fallback) ─────────────────────
+async function queryDB(commodity, state, district, withinDays = 90) {
+  const since = new Date(Date.now() - withinDays * 24 * 60 * 60 * 1000);
+  const where = {
+    commodity: { contains: normaliseCommodity(commodity), mode: 'insensitive' },
+    state:     { contains: state, mode: 'insensitive' },
+    priceDate: { gte: since },
+  };
+  if (district) where.district = { contains: district, mode: 'insensitive' };
+  const rows = await prisma.mandiPrice.findMany({
+    where, orderBy: { priceDate: 'desc' }, take: 50,
+  });
+  // If district query is empty, fall back to state-level DB records
+  if (!rows.length && district) {
+    delete where.district;
+    return prisma.mandiPrice.findMany({ where, orderBy: { priceDate: 'desc' }, take: 50 });
+  }
+  return rows;
+}
+
+// ── Main: get prices (DB-first when fresh, then live API, then stale DB) ──────
 export async function getMandiPrices(commodity, state, district = null) {
+  if (NO_MANDI_STATES.has(state)) {
+    return { data: [], stale: false, source: 'unavailable' };
+  }
+
   const key = `${commodity.toLowerCase()}|${state.toLowerCase()}|${district || ''}`;
   const cached = memGet(key);
   if (cached) return { data: cached, stale: false, source: 'cache' };
 
-  // Try live data.gov.in
-  try {
-    const records = await fetchFromDataGovIn(commodity, state, district);
-    if (records.length > 0) {
-      persistToDB(records).catch(() => {});
-      memSet(key, records);
-      return { data: records, stale: false, source: 'data.gov.in', fetchedAt: new Date().toISOString() };
-    }
-  } catch (err) {
-    const status = err.response?.status === 429 ? 'rate_limited' : (err.code === 'ECONNABORTED' ? 'timeout' : 'failure');
-    await logHealth(status, DATA_GOV_BASE, null, err.message?.slice(0, 200)).catch(() => {});
-    console.warn('[MandiPrice] data.gov.in failed:', err.message);
+  // ── 1. Check DB for records fetched in the last 4 hours (fresh enough) ──────
+  const freshRows = await queryDB(commodity, state, district, 1).catch(() => []);
+  if (freshRows.length > 0) {
+    memSet(key, freshRows);
+    return { data: freshRows, stale: false, source: 'db-cache', cachedAt: freshRows[0].fetchedAt?.toISOString() };
   }
 
-  // Fallback: DB cache (last 7 days)
-  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const dbRecords = await prisma.mandiPrice.findMany({
-    where: {
-      commodity: { contains: normaliseCommodity(commodity), mode: 'insensitive' },
-      state:     { contains: state, mode: 'insensitive' },
-      priceDate: { gte: since },
-    },
-    orderBy: { priceDate: 'desc' },
-    take: 30,
-  });
+  // ── 2. Try live data.gov.in (district first, then broaden to state) ──────────
+  if (ENV.DATA_GOV_API_KEY) {
+    try {
+      let records = await fetchFromDataGovIn(commodity, state, district);
+      if (!records.length && district) {
+        records = await fetchFromDataGovIn(commodity, state, null);
+      }
+      if (records.length > 0) {
+        persistToDB(records).catch(() => {});
+        memSet(key, records);
+        return { data: records, stale: false, source: 'data.gov.in', fetchedAt: new Date().toISOString() };
+      }
+    } catch (err) {
+      const status = err.response?.status === 429 ? 'rate_limited' : (err.code === 'ECONNABORTED' ? 'timeout' : 'failure');
+      await logHealth(status, DATA_GOV_BASE, null, err.message?.slice(0, 200)).catch(() => {});
+      console.warn('[MandiPrice] data.gov.in failed:', err.message);
+    }
+  } else {
+    console.warn('[MandiPrice] DATA_GOV_API_KEY not set — serving from DB only');
+  }
 
-  if (dbRecords.length > 0) {
-    memSet(key, dbRecords);
-    return { data: dbRecords, stale: true, source: 'cache', cachedAt: dbRecords[0].fetchedAt?.toISOString() };
+  // ── 3. Fallback: DB records up to 90 days old (pre-seeded data) ─────────────
+  const staleRows = await queryDB(commodity, state, district, 90).catch(() => []);
+  if (staleRows.length > 0) {
+    memSet(key, staleRows);
+    return { data: staleRows, stale: true, source: 'db-seeded', cachedAt: staleRows[0].fetchedAt?.toISOString() };
   }
 
   return { data: [], stale: false, source: 'unavailable' };

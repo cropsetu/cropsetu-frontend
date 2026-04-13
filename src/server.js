@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import http from 'http';
+import cron from 'node-cron';
 import { Server as SocketIO } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import Redis from 'ioredis';
@@ -74,6 +75,77 @@ async function start() {
     httpServer.listen(ENV.PORT, () => {
       logger.info('[Server] FarmEasy API running on http://localhost:%d%s', ENV.PORT, ENV.API_PREFIX);
       logger.info('[Server] Environment: %s', ENV.NODE_ENV);
+    });
+
+    // ── AgriPredict cron jobs ───────────────────────────────────────────────
+    const AI_BASE = ENV.AI_BACKEND_URL || 'http://localhost:8001';
+
+    // Helper: fire a single sync trigger (non-blocking)
+    async function triggerMandiSync(commodity, state, maxPages = 3) {
+      return fetch(`${AI_BASE}/agripredict/sync/trigger`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ commodity, state, district: null, max_pages: maxPages }),
+        signal:  AbortSignal.timeout(8_000),
+      }).catch(e => logger.warn('[AgriPredict] Sync trigger %s/%s failed: %s', commodity, state, e.message));
+    }
+
+    // ── Startup auto-seed: if mandi_prices table is empty, seed top combos ──
+    const mandiCount = await prisma.mandiPrice.count().catch(() => 0);
+    if (mandiCount === 0) {
+      logger.info('[AgriPredict] DB empty — seeding top commodity/state combos at startup');
+      const SEED_COMBOS = [
+        // Top crops × major agricultural states
+        ...['Tomato','Onion','Potato'].flatMap(c =>
+          ['Maharashtra','Madhya Pradesh','Karnataka','Andhra Pradesh','Uttar Pradesh'].map(s => ({ commodity: c, state: s }))
+        ),
+        ...['Wheat','Bajra'].flatMap(c =>
+          ['Punjab','Haryana','Uttar Pradesh','Rajasthan','Madhya Pradesh'].map(s => ({ commodity: c, state: s }))
+        ),
+        ...['Soyabean','Cotton'].flatMap(c =>
+          ['Maharashtra','Madhya Pradesh','Gujarat','Rajasthan','Telangana'].map(s => ({ commodity: c, state: s }))
+        ),
+        ...['Rice'].flatMap(c =>
+          ['West Bengal','Andhra Pradesh','Tamil Nadu','Punjab','Uttar Pradesh'].map(s => ({ commodity: c, state: s }))
+        ),
+        ...['Maize','Gram','Arhar/Tur'].flatMap(c =>
+          ['Karnataka','Madhya Pradesh','Maharashtra','Uttar Pradesh'].map(s => ({ commodity: c, state: s }))
+        ),
+      ];
+      // Fire all without waiting — syncs run in FastAPI background workers
+      for (const { commodity, state } of SEED_COMBOS) {
+        await triggerMandiSync(commodity, state, 5);
+      }
+      logger.info('[AgriPredict] Startup seed: %d sync jobs queued', SEED_COMBOS.length);
+    } else {
+      logger.info('[AgriPredict] DB has %d mandi price records — skipping startup seed', mandiCount);
+    }
+
+    // Daily at 6:00 AM IST (00:30 UTC) — refresh all 20 agricultural states × top 5 crops
+    cron.schedule('30 0 * * *', async () => {
+      logger.info('[AgriPredict] Daily sync started → FastAPI');
+      const DAILY_COMBOS = [
+        ...['Tomato','Onion','Potato','Wheat','Soyabean'].flatMap(c =>
+          ['Maharashtra','Punjab','Madhya Pradesh','Uttar Pradesh','Karnataka',
+           'Andhra Pradesh','Rajasthan','Gujarat','Telangana','Tamil Nadu',
+           'Bihar','West Bengal','Haryana','Odisha','Chhattisgarh'].map(s => ({ commodity: c, state: s }))
+        ),
+      ];
+      let triggered = 0;
+      for (const { commodity, state } of DAILY_COMBOS) {
+        await triggerMandiSync(commodity, state, 2);
+        triggered++;
+      }
+      logger.info('[AgriPredict] Daily sync: %d triggers sent to FastAPI', triggered);
+    });
+
+    // 1st of every month at 1:00 AM UTC — purge expired prediction caches
+    cron.schedule('0 1 1 * *', async () => {
+      logger.info('[AgriPredict] Monthly cache expiry check');
+      const expired = await prisma.predictionCache.deleteMany({
+        where: { expiresAt: { lt: new Date() } },
+      });
+      logger.info('[AgriPredict] Deleted %d expired prediction caches', expired.count);
     });
 
     httpServer.on('error', (err) => {

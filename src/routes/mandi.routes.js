@@ -36,20 +36,28 @@ router.get('/prices', authenticate, async (req, res) => {
   const { data, stale, source, fetchedAt, cachedAt } = await getMandiPrices(commodity, state, district);
 
   if (!data.length) {
-    return sendError(res, `डेटा उपलब्ध नहीं है — कृपया बाद में देखें। (${commodity}, ${state})`, 503);
+    return sendError(res, `No mandi data found for ${commodity} in ${district ? `${district}, ` : ''}${state}. Try a different commodity or state.`, 404);
   }
 
   // Sort by highest modal price first (farmer wants best market)
   data.sort((a, b) => b.modalPrice - a.modalPrice);
 
+  const sourceLabel = source === 'db-seeded'
+    ? 'Cached (pre-seeded DB)'
+    : source === 'db-cache'
+      ? 'Cached (DB — updated today)'
+      : source === 'data.gov.in'
+        ? 'Live — data.gov.in'
+        : source;
+
   return sendSuccess(res, data, 200, {
     commodity, state, district,
     total:     data.length,
-    source:    stale ? `⏱ कैश (${source})` : `स्रोत: ${source}`,
+    source:    sourceLabel,
     isStale:   stale,
     fetchedAt: fetchedAt || cachedAt || null,
-    disclaimer: stale ? 'यह डेटा पुराना हो सकता है। ताज़ा डेटा के लिए बाद में देखें।' : null,
-    attribution: 'स्रोत: Agmarknet / data.gov.in, भारत सरकार',
+    disclaimer: stale ? 'Prices from pre-seeded DB — may be a few days old. Live data.gov.in unavailable right now.' : null,
+    attribution: 'Source: Agmarknet / data.gov.in, Government of India',
   });
 });
 

@@ -42,6 +42,7 @@ import irrigationRoutes    from './routes/irrigation.routes.js';
 import inputsRoutes        from './routes/inputs.routes.js';
 import cropsRoutes         from './routes/crops.routes.js';
 import featuresRoutes      from './routes/features.routes.js';
+import agriPredictRoutes   from './routes/agriPredict.routes.js';
 
 const app = express();
 
@@ -152,6 +153,7 @@ app.use(`${API}/irrigation`, irrigationRoutes);
 app.use(`${API}/inputs`,     inputsRoutes);
 app.use(`${API}/crops`,      cropsRoutes);
 app.use(`${API}/admin`,      featuresRoutes);
+app.use(`${API}/agripredict`, agriPredictRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((req, res) => sendError(res, `Route ${req.method} ${req.path} not found`, 404));

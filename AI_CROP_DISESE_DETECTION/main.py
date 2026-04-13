@@ -27,10 +27,11 @@ from slowapi.util import get_remote_address
 from logging_config import setup_logging
 setup_logging()
 
-from config import API_HOST, API_PORT, GROQ_API_KEY, GEMINI_API_KEY
-from routes.chat   import router as chat_router
-from routes.scan   import router as scan_router
-from routes.alerts import router as alerts_router
+from config import API_HOST, API_PORT, GROQ_API_KEY, GEMINI_API_KEY, DATA_GOV_API_KEY, DATABASE_URL
+from routes.chat        import router as chat_router
+from routes.scan        import router as scan_router
+from routes.alerts      import router as alerts_router
+from routes.agripredict import router as agripredict_router
 
 logger = logging.getLogger(__name__)
 
@@ -71,9 +72,10 @@ app.add_middleware(
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 
-app.include_router(chat_router)    # POST /ai/chat
-app.include_router(scan_router)    # POST /ai/scan  +  POST /api/v1/crop-disease/agentic-predict
-app.include_router(alerts_router)  # POST /ai/alerts
+app.include_router(chat_router)         # POST /ai/chat
+app.include_router(scan_router)         # POST /ai/scan  +  POST /api/v1/crop-disease/agentic-predict
+app.include_router(alerts_router)       # POST /ai/alerts
+app.include_router(agripredict_router)  # /agripredict/*
 
 # ── Health ────────────────────────────────────────────────────────────────────
 
@@ -87,8 +89,10 @@ async def health():
 @app.on_event("startup")
 async def _check_config():
     keys = {
-        "GEMINI_API_KEY": os.getenv("GEMINI_API_KEY"),
-        "GROQ_API_KEY":   os.getenv("GROQ_API_KEY"),
+        "GEMINI_API_KEY":    os.getenv("GEMINI_API_KEY"),
+        "GROQ_API_KEY":      os.getenv("GROQ_API_KEY"),
+        "DATA_GOV_API_KEY":  os.getenv("DATA_GOV_API_KEY"),
+        "DATABASE_URL":      os.getenv("DATABASE_URL"),
     }
     for name, val in keys.items():
         if not val:
