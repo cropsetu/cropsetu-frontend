@@ -75,23 +75,37 @@ app.use(cors({
   credentials: true,
 }));
 
-// ── Body parsing ──────────────────────────────────────────────────────────────
-// [H4] Upload route needs up to ~10 MB for base64-encoded images.
-//      All other routes only need a few KB — cap tightly to prevent DoS.
-//      The upload route is mounted BEFORE the global parser so it gets its own limit.
-const API = ENV.API_PREFIX;
-app.use(`${API}/upload`, express.json({ limit: '10mb' }));
-
-// All remaining routes — 100 KB is generous for any JSON payload they accept
-app.use(express.json({ limit: '100kb' }));
-app.use(express.urlencoded({ extended: true, limit: '100kb' }));
+// ── Compression ───────────────────────────────────────────────────────────────
 app.use(compression());
 
 // ── Logging ───────────────────────────────────────────────────────────────────
-// Use 'tiny' in production — 'combined' logs the full URL including query strings
-// which can inadvertently capture tokens passed as query params.
+// Morgan MUST be registered BEFORE body parsers.
+// body-parser calls next(err) on 413/400, which jumps straight to error
+// middleware — skipping every non-error middleware that hasn't run yet.
+// If morgan is after body parsers it never registers its res.finish listener
+// and multipart requests that are rejected by body-parser appear nowhere in logs.
 if (ENV.IS_DEV) app.use(morgan('dev'));
 else            app.use(morgan('tiny'));
+
+// ── Body parsing ──────────────────────────────────────────────────────────────
+// [H4] Upload route needs up to ~10 MB for base64-encoded images.
+//      All other routes only need a few KB — cap tightly to prevent DoS.
+//
+// IMPORTANT: skip JSON/urlencoded parsing for multipart/form-data requests.
+// Those routes use multer, which reads the raw stream itself.  If body-parser
+// runs first on a multipart request it may reject with 413 (body > limit)
+// before the request reaches the route handler or Morgan.
+function skipMultipart(middleware) {
+  return (req, res, next) => {
+    if ((req.headers['content-type'] || '').startsWith('multipart/')) return next();
+    return middleware(req, res, next);
+  };
+}
+
+const API = ENV.API_PREFIX;
+app.use(`${API}/upload`, skipMultipart(express.json({ limit: '10mb' })));
+app.use(skipMultipart(express.json({ limit: '100kb' })));
+app.use(skipMultipart(express.urlencoded({ extended: true, limit: '100kb' })));
 
 // ── Global rate limit ─────────────────────────────────────────────────────────
 app.use(rateLimit({

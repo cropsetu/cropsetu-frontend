@@ -10,7 +10,7 @@
  * POST /api/v1/ai/translate      — Translate via Sarvam
  * GET  /api/v1/ai/conversations  — User's chat history list
  * GET  /api/v1/ai/conversations/:id — Full conversation messages
- * POST /api/v1/ai/scan           — Crop image → FastAPI /ai/scan (5-agent pipeline)
+ * POST /api/v1/ai/scan           — Crop image → Gemini disease diagnosis (Node.js direct, no FastAPI)
  * POST /api/v1/ai/scan/:id/chat  — Follow-up Q&A on scan session
  * GET  /api/v1/ai/scan/sessions  — List scan sessions
  * GET  /api/v1/ai/scan/sessions/:id — Full scan session
@@ -33,6 +33,7 @@ import {
   normaliseLangCode,
 } from '../services/sarvam.service.js';
 import { getCurrentSeason } from '../services/ai.chat.service.js';
+import { predictCropDisease } from '../services/ai.predict.service.js';
 import prisma from '../config/db.js';
 
 // ── FastAPI proxy helper ──────────────────────────────────────────────────────
@@ -71,77 +72,68 @@ async function callFastAPI(path, body, userId, timeoutMs = 90_000) {
   }
 }
 
-// ── Normalize FastAPI agentic report → DiagnosisResultScreen format ──────────
 /**
- * FastAPI returns: { disease: {name_common, name_scientific, confidence_pct, ...}, treatment: {immediate,chemical,...}, ... }
- * DiagnosisResultScreen expects flat keys: disease (str), confidence (0-100), severity, immediateAction, treatment (array), ...
+ * Flatten a predictCropDisease() result (Node.js format) into the flat shape
+ * that DiagnosisResultScreen expects.  Used when /ai/scan runs Gemini directly
+ * instead of proxying to FastAPI.
  */
-function normalizeScanReport(report) {
-  if (!report || typeof report !== 'object') return report;
+function flattenNodePrediction(result, farmCtx = {}) {
+  if (!result || typeof result !== 'object') return result;
 
-  // Already flat (old format or needs_rescan)
-  if (typeof report.disease === 'string') return report;
+  const dis      = result.primary_disease || {};
+  const sevRaw   = (dis.severity || result.risk_level || 'moderate').toLowerCase();
+  const urgency  = sevRaw === 'critical' ? 'immediate'
+                 : sevRaw === 'high'     ? 'today'
+                 : 'thisweek';
 
-  const dis   = report.disease     || {};      // nested disease object from FastAPI
-  const tx    = report.treatment   || {};      // nested treatment object
-  const wout  = report.weather_outlook || {};
-  const conf  = report.confidence_score ?? (dis.confidence_pct != null ? dis.confidence_pct / 100 : 0);
-  const sevRaw = (dis.severity || report.risk_level || 'moderate').toLowerCase();
+  // Format chemical treatment lines from pesticides array
+  const treatment = (result.pesticides || []).map(p => {
+    const base = `${p.name} — ${p.dose || p.dose_per_acre || ''}`;
+    return p.timing ? `${base} (${p.timing})` : base;
+  });
 
-  // immediate action: first item of immediate_actions array, or treatment.immediate[0]
-  const immediateArr = tx.immediate_actions || tx.immediate || [];
-  const immediateAction = typeof immediateArr[0] === 'string'
-    ? immediateArr[0]
-    : (immediateArr[0]?.step || immediateArr[0]?.action || '');
+  // Use cultural_controls as organic treatment hint
+  const organicArr = result.cultural_controls || [];
+  const organicTreatment = organicArr.length ? organicArr.join('\n') : null;
 
-  // treatment: combine chemical + organic as flat array for the screen
-  const chemArr    = (tx.chemical_controls  || tx.chemical  || []).map(c =>
-    typeof c === 'string' ? c : `${c.product || ''} — ${c.dosage || c.dosage_per_acre || ''}`
-  );
-  const organicArr = (tx.organic_alternatives || tx.organic || []).map(c =>
-    typeof c === 'string' ? c : `${c.product || ''} — ${c.dosage || ''}`
-  );
-  const prevention = (tx.preventive_measures || tx.preventive || []).join('. ');
+  // Causes: primary disease cause + up to 2 differential reasons
+  const causes = [];
+  if (dis.cause) causes.push(dis.cause);
+  (result.differential_diagnoses || []).slice(0, 2).forEach(d => {
+    if (d.reason) causes.push(`Not ${d.name}: ${d.reason}`);
+  });
 
-  // causes from report or diagnosis
-  const causes = Array.isArray(report.causes)
-    ? report.causes
-    : (Array.isArray(report.causal_factors) ? report.causal_factors : []);
+  // Next steps: immediate actions + cultural controls (capped at 4 total)
+  const nextSteps = [
+    ...(result.immediate_actions || []).slice(0, 2),
+    ...(result.cultural_controls || []).slice(0, 2),
+  ];
 
   return {
-    // ── Core disease info ─────────────────────────────────────────────
-    disease:        dis.name_common      || dis.disease       || 'Unknown',
-    scientific:     dis.name_scientific  || dis.scientific_name || '',
-    confidence:     Math.round(conf * (conf <= 1 ? 100 : 1)),   // normalise to 0-100
-    severity:       sevRaw,
-    spreadRisk:     (dis.spread_risk     || report.spread_risk || '').toLowerCase(),
-    isHealthy:      (dis.name_common     || '').toLowerCase().includes('healthy'),
-
-    // ── Context ───────────────────────────────────────────────────────
-    crop:           report.farm?.crop    || '',
-    stage:          report.farm?.growth_stage || '',
-    affectedAreaEstimate: report.farm?.affected_pct ? `${report.farm.affected_pct}%` : '',
-    urgencyLevel:   sevRaw === 'critical' ? 'now' : sevRaw === 'high' ? 'today' : 'thisweek',
-    estimatedYieldLoss: dis.yield_loss_estimate || '',
-
-    // ── Treatment ─────────────────────────────────────────────────────
-    immediateAction,
-    treatment:      chemArr,
-    organicTreatment: organicArr.length ? organicArr.join('\n') : null,
-    prevention,
-    nextSteps:      Array.isArray(report.next_steps) ? report.next_steps : [],
-
-    // ── Notes & risk ──────────────────────────────────────────────────
-    notes:          report.farmer_summary || dis.description || '',
+    disease:              dis.name              || 'Unknown',
+    scientific:           dis.scientific_name   || '',
+    confidence:           Math.round((result.confidence_score || 0) * 100),
+    severity:             sevRaw,
+    isHealthy:            result.disease_category === 'healthy',
+    crop:                 farmCtx.cropName      || '',
+    stage:                farmCtx.growthStage   || (farmCtx.cropAge != null ? String(farmCtx.cropAge) : ''),
+    affectedAreaEstimate: farmCtx.affectedArea  || '',
+    spreadRisk:           (result.risk_level    || '').toLowerCase(),
+    urgencyLevel:         urgency,
+    estimatedYieldLoss:   '',
+    immediateAction:      (result.immediate_actions || [])[0] || '',
+    treatment,
+    organicTreatment,
+    prevention:           (result.preventive_measures || []).join('. '),
+    nextSteps,
+    notes:                result.farmer_friendly_summary || dis.description || '',
     causes,
-    weatherRiskNote: wout.advisory || wout.summary || wout.risk || '',
-    soilConsideration: '',
-    previousCropNote: '',
-    consultExpert:  report.advisor_needed || false,
-    followUpSchedule: [],
-
-    // ── Pass-through for full report access ───────────────────────────
-    _fullReport: report,
+    weatherRiskNote:      result.weather_risk?.next_3_days || '',
+    soilConsideration:    '',
+    previousCropNote:     '',
+    consultExpert:        result.risk_level === 'CRITICAL',
+    followUpSchedule:     [],
+    _fullReport:          result,
   };
 }
 
@@ -587,12 +579,8 @@ router.post('/scan', authenticate, (req, res, next) => {
   }
 
   try {
-    const imageBuffer = fs.readFileSync(file.path);
-    const base64      = imageBuffer.toString('base64');
-    const mimeType    = file.mimetype;
-    try { fs.unlinkSync(file.path); } catch { /* ignore */ }
-
-    console.log(`[Express/Scan]   Image        : ${(imageBuffer.length / 1024).toFixed(1)} KB  mime=${mimeType}`);
+    const imageSize = fs.statSync(file.path).size;
+    const mimeType  = file.mimetype;
 
     let farmCtx = {};
     try { farmCtx = JSON.parse(req.body.farmContext || '{}'); } catch { /* ignore */ }
@@ -600,73 +588,50 @@ router.post('/scan', authenticate, (req, res, next) => {
     const lat = parseFloat(req.body.lat);
     const lon = parseFloat(req.body.lon);
 
-    console.log(`[Express/Scan]   farmContext  :`, JSON.stringify({
-      cropName: farmCtx.cropName, cropAge: farmCtx.cropAge, soilType: farmCtx.soilType,
-      irrigationType: farmCtx.irrigationType, landSize: farmCtx.landSize,
-      state: farmCtx.state, district: farmCtx.district,
-      symptoms: farmCtx.symptoms, affectedArea: farmCtx.affectedArea,
-    }, null, 2));
+    console.log(`[Express/Scan]   Image        : ${(imageSize / 1024).toFixed(1)} KB  mime=${mimeType}`);
+    console.log(`[Express/Scan]   farmCtx      : crop=${farmCtx.cropName} stage=${farmCtx.growthStage} soil=${farmCtx.soilType}`);
     console.log(`[Express/Scan]   GPS          : lat=${isNaN(lat) ? 'none' : lat}  lon=${isNaN(lon) ? 'none' : lon}`);
 
-    // ── Proxy to FastAPI 5-agent pipeline ────────────────────────────────────
-    console.log(`[Express/Scan]   → Calling FastAPI /ai/scan (timeout 180s)...`);
-    const rawDiagnosis = await callFastAPI('/ai/scan', {
-      image_base64: base64,
-      mime_type:    mimeType,
-      farm_ctx:     farmCtx,
-      lat:          !isNaN(lat) ? lat : null,
-      lon:          !isNaN(lon) ? lon : null,
-    }, req.user.id, 180_000);   // 3-min timeout for 5-agent pipeline
+    // ── Run disease diagnosis via Node.js Gemini client (no FastAPI required) ─
+    console.log(`[Express/Scan]   → Running Gemini diagnosis...`);
+    const params = {
+      cropType:         farmCtx.cropName        || 'Unknown',
+      growthStage:      farmCtx.growthStage      || (farmCtx.cropAge != null ? String(farmCtx.cropAge) : 'Unknown'),
+      irrigationMethod: farmCtx.irrigationType  || null,
+      symptoms:         Array.isArray(farmCtx.symptoms) ? farmCtx.symptoms : [],
+      fieldArea:        farmCtx.landSize        || null,
+      pincode:          farmCtx.pincode         || req.user?.pincode || '000000',
+      weather:          null,
+      soilData:         null,
+    };
+    const rawDiagnosis = await predictCropDisease(params, [
+      { path: file.path, type: farmCtx.imageView || 'close_up' },
+    ]);
 
-    console.log(`[Express/Scan]   ← FastAPI responded in ${Date.now()-t0}ms`);
-    console.log(`[Express/Scan]   rawDiagnosis keys:`, Object.keys(rawDiagnosis || {}));
-    console.log(`[Express/Scan]   disease field type:`, typeof rawDiagnosis?.disease, '→', JSON.stringify(rawDiagnosis?.disease)?.slice(0,120));
-    console.log(`[Express/Scan]   weather_outlook:`, JSON.stringify(rawDiagnosis?.weather_outlook));
-    console.log(`[Express/Scan]   treatment keys:`, Object.keys(rawDiagnosis?.treatment || {}));
-    console.log(`[Express/Scan]   confidence_score:`, rawDiagnosis?.confidence_score);
-    console.log(`[Express/Scan]   risk_level:`, rawDiagnosis?.risk_level);
-    console.log(`[Express/Scan]   advisor_needed:`, rawDiagnosis?.advisor_needed);
-    console.log(`[Express/Scan]   meta:`, JSON.stringify(rawDiagnosis?.meta));
+    // Delete temp file after Gemini has finished reading it
+    try { fs.unlinkSync(file.path); } catch { /* ignore */ }
 
-    // ── Log token usage from pipeline ────────────────────────────────────────
-    const tokenUsage = rawDiagnosis?.meta?.pipeline_token_usage;
-    if (tokenUsage) {
-      const ag = tokenUsage.agents || {};
-      console.log(`[Express/Scan] ── TOKEN USAGE ─────────────────────────────────`);
-      console.log(`[Express/Scan]   WeatherAnalysis : model=${ag.weather_analysis?.model}  in=${ag.weather_analysis?.input_tokens}  out=${ag.weather_analysis?.output_tokens}  cost=$${ag.weather_analysis?.cost_usd?.toFixed(4)}`);
-      console.log(`[Express/Scan]   DiseaseDiagnosis: model=${ag.disease_diagnosis?.model}  in=${ag.disease_diagnosis?.input_tokens}  out=${ag.disease_diagnosis?.output_tokens}  cost=$${ag.disease_diagnosis?.cost_usd?.toFixed(4)}`);
-      console.log(`[Express/Scan]   Treatment       : model=${ag.treatment?.model}  in=${ag.treatment?.input_tokens}  out=${ag.treatment?.output_tokens}  cost=$${ag.treatment?.cost_usd?.toFixed(4)}`);
-      console.log(`[Express/Scan]   ReportGenerator : model=${ag.report_generator?.model}  in=${ag.report_generator?.input_tokens}  out=${ag.report_generator?.output_tokens}  cost=$${ag.report_generator?.cost_usd?.toFixed(4)}`);
-      console.log(`[Express/Scan]   ──────────────────────────────────────────────`);
-      console.log(`[Express/Scan]   TOTAL           : input=${tokenUsage.total_input_tokens}  output=${tokenUsage.total_output_tokens}  total=${tokenUsage.total_tokens}  cost=$${tokenUsage.total_cost_usd?.toFixed(4)}`);
-    } else {
-      console.log(`[Express/Scan]   Token usage: not available (pipeline_token_usage missing from meta)`);
-    }
+    console.log(`[Express/Scan]   ← Gemini done in ${Date.now()-t0}ms  disease=${rawDiagnosis?.primary_disease?.name}  conf=${rawDiagnosis?.confidence_score}  risk=${rawDiagnosis?.risk_level}`);
 
-    // ── Record usage (non-blocking — don't let DB failure block response) ────
+    // ── Record usage (non-blocking) ──────────────────────────────────────────
+    const tokenUsage = rawDiagnosis?.meta ? {
+      total_tokens:   rawDiagnosis.meta.tokens_used || 0,
+      total_cost_usd: 0,
+    } : null;
     recordScanUsage(req.user.id, tokenUsage).catch(() => {});
 
-    // Normalize FastAPI report shape → flat shape DiagnosisResultScreen expects
-    const diagnosis = normalizeScanReport(rawDiagnosis);
-    console.log(`[Express/Scan]   After normalizeScanReport:`);
-    console.log(`[Express/Scan]     disease       :`, diagnosis.disease);
-    console.log(`[Express/Scan]     confidence    :`, diagnosis.confidence);
-    console.log(`[Express/Scan]     severity      :`, diagnosis.severity);
-    console.log(`[Express/Scan]     spreadRisk    :`, diagnosis.spreadRisk);
-    console.log(`[Express/Scan]     immediateAction:`, (diagnosis.immediateAction || '').slice(0,80));
-    console.log(`[Express/Scan]     treatment[]   :`, diagnosis.treatment?.length, 'items');
-    console.log(`[Express/Scan]     causes[]      :`, diagnosis.causes?.length, 'items');
-    console.log(`[Express/Scan]     weatherRiskNote:`, diagnosis.weatherRiskNote);
-    console.log(`[Express/Scan]     _fullReport present:`, !!diagnosis._fullReport);
+    // Flatten Node.js predict format → flat shape DiagnosisResultScreen expects
+    const diagnosis = flattenNodePrediction(rawDiagnosis, farmCtx);
+    console.log(`[Express/Scan]   disease=${diagnosis.disease}  conf=${diagnosis.confidence}  severity=${diagnosis.severity}  treatment=${diagnosis.treatment?.length} items`);
 
-    if (rawDiagnosis?.report_id === 'needs_rescan') {
+    if (rawDiagnosis?.needs_rescan) {
       console.log(`[Express/Scan] ✗ needs_rescan — returning early`);
-      return sendSuccess(res, { ...diagnosis, sessionId: null, weatherUsed: !isNaN(lat) });
+      return sendSuccess(res, { ...diagnosis, sessionId: null, weatherUsed: false });
     }
 
     // ── Create scan chat session for follow-up Q&A (non-blocking — DB failures must not kill response) ──
     const diseaseName = diagnosis.disease || 'Crop Analysis';
-    const cropName    = farmCtx.cropName  || diagnosis.crop || rawDiagnosis?.farm?.crop || 'Unknown crop';
+    const cropName    = farmCtx.cropName  || diagnosis.crop || 'Unknown crop';
 
     let sessionId = null;
     try {
@@ -710,10 +675,10 @@ router.post('/scan', authenticate, (req, res, next) => {
           riskLevel,
           primaryDisease:  diseaseName,
           confidenceScore: confScore,
-          diagnosisMethod: 'agentic-vision',
+          diagnosisMethod: 'gemini-direct',
           modelAgreement:  null,
           fullReport:      rawDiagnosis,
-          weatherSnapshot: rawDiagnosis?.weather_outlook || null,
+          weatherSnapshot: null,
           conversationId:  sessionId,
         },
       }).catch(e => console.warn('[AI Scan] CropDiseaseReport save failed:', e.message));
@@ -730,7 +695,7 @@ router.post('/scan', authenticate, (req, res, next) => {
     return sendSuccess(res, {
       ...diagnosisForClient,
       sessionId,
-      weatherUsed: !isNaN(lat),
+      weatherUsed: false,  // weather fetch skipped — Gemini diagnoses from image + context only
     });
 
   } catch (err) {
@@ -739,8 +704,8 @@ router.post('/scan', authenticate, (req, res, next) => {
     console.error(`[Express/Scan] ✗ ERROR after ${elapsed}ms — ${err.name}: ${err.message}`);
     console.error(`[Express/Scan]   status=${err.status}  stack=${err.stack?.split('\n')[1]}`);
 
-    if (err.status === 503 || err.message?.includes('FastAPI'))
-      return sendError(res, 'AI service is starting up — please wait 30 seconds and try again.', 503);
+    if (err.status === 503 || err.message?.includes('No AI key'))
+      return sendError(res, 'AI service not configured. Please contact support.', 503);
     if (err.status === 429 || err.message?.includes('rate limit') || err.message?.includes('quota'))
       return sendError(res, 'AI service is busy (rate limit). Please wait 1 minute and try again.', 429);
     if (err.name === 'AbortError' || elapsed >= 175_000)
