@@ -470,6 +470,8 @@ async function callGemini(messages, attempt = 1) {
       temperature: 0.0,   // fully deterministic
       top_p: 0.1,         // narrow sampling
       response_format: { type: 'json_object' },
+    }, {
+      signal: AbortSignal.timeout(90_000), // 90 s hard cap — prevents Railway request hangs
     });
 
     const raw = response.choices[0]?.message?.content || '';

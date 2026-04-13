@@ -150,6 +150,14 @@ function getGroqSTT() {
 const SUMMARY_TRIGGER = 20;
 const router = Router();
 
+// ── Early request logging (fires before authenticate — visible even if auth fails) ──
+router.use((req, _res, next) => {
+  if (req.method === 'POST' && req.path === '/scan') {
+    console.log(`[AI-Router] POST /scan received — content-type="${req.headers['content-type']?.slice(0,60)}" user-agent="${req.headers['user-agent']?.slice(0,40)}"`);
+  }
+  next();
+});
+
 // ── Per-user caches ───────────────────────────────────────────────────────────
 const alertCache   = new Map();
 const ALERT_TTL_MS = 30 * 60 * 1000;
