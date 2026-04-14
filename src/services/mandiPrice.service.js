@@ -85,7 +85,7 @@ async function _fetchPage(commodity, state, offset = 0) {
       limit:                500,   // max per call (registered key); demo key caps at 10
       offset,
       'filters[commodity]': apiCommodity,
-      'filters[State]':     normaliseState(state),   // data.gov.in uses capital S
+      'filters[state]':     normaliseState(state),   // API is case-sensitive — lowercase 's'
     },
     timeout: 12000,
     headers: { 'User-Agent': 'FarmEasy/1.0 (farmeasy.app)' },
