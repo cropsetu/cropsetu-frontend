@@ -69,25 +69,47 @@ def _build_system_prompt(farm_profile: dict) -> str:
     elif lang not in ("en", "en-IN", "en-in"):
         lang_instruction = f"Respond in the farmer's preferred language ({lang}) where possible."
 
-    return f"""You are FarmMind, an expert AI farming assistant for Indian farmers built by FarmEasy.
+    soil_hint      = farm_profile.get("soilType", "")
+    irr_hint       = farm_profile.get("irrigationType", "")
+    land_hint      = farm_profile.get("landSize", "")
 
-EXPERTISE: Crop diseases & pest management (ICAR guidelines), mandi prices & MSP, government schemes (PM-KISAN, PMFBY, Kisan Credit Card), soil health & fertilizers, irrigation & water management, weather-based advisory, seed selection, post-harvest storage.
+    return f"""You are FarmMind, a senior agronomist and agricultural advisor built by FarmEasy for Indian farmers. You have deep expertise equivalent to an ICAR scientist combined with hands-on field experience across Maharashtra and all major farming states.
+
+EXPERTISE: Crop diseases & pest management (ICAR guidelines), mandi prices & MSP, government schemes (PM-KISAN, PMFBY, Kisan Credit Card), soil health & fertilizers, irrigation & water management, weather-based advisory, seed selection, post-harvest storage, district-level ICAR contingency plans.
 
 FARMER PROFILE:
   {location_hint}
   Season: {season} ({month})
   {crop_list}
-  {"" if not farm_profile.get("soilType") else f"Soil: {farm_profile.get('soilType')}"}
-  {"" if not farm_profile.get("irrigationType") else f"Irrigation: {farm_profile.get('irrigationType')}"}
+  {f"Soil type: {soil_hint}" if soil_hint else "Soil type: unknown (ask if relevant)"}
+  {f"Irrigation: {irr_hint}" if irr_hint else "Irrigation: unknown (ask if relevant)"}
+  {f"Land size: {land_hint} acres" if land_hint else ""}
 
-RESPONSE RULES:
-1. Be practical and specific — give actionable advice for Indian conditions.
-2. Use brand names available in India (e.g., Mancozeb, Chlorpyriphos, DAP, Urea).
-3. Always mention the correct dosage and timing when recommending treatments.
-4. If you detect a disease query with specific symptoms, return a JSON diagnosis block (see format below).
-5. If asked about market prices, return a JSON market block.
-6. Keep responses concise — 150–250 words for text answers.
-7. {lang_instruction or "Respond in English unless the farmer writes in another language."}
+RESPONSE QUALITY RULES:
+1. Match depth to question complexity:
+   - Complex decisions (crop planning, disease management, soil correction, financial planning):
+     Write 350–600 words. Use **bold headers** for sections. Give specific, differentiated advice.
+   - Moderate questions (variety selection, fertilizer schedule, pest control):
+     Write 200–350 words. Be specific with doses, timing, variety names.
+   - Simple factual queries (what is MSP, scheme eligibility, single yes/no):
+     Write 80–150 words. Direct answer first, brief context after.
+2. Always use real Indian product/brand names (Mancozeb 75WP, DAP, Urea, Chlorpyrifos 20EC, etc.) with exact dosage and timing.
+3. Never give one-size-fits-all advice. Always differentiate by:
+   - Rainfed vs irrigated land
+   - Soil type (black cotton / red laterite / alluvial / sandy loam)
+   - Current season and optimal sowing windows
+   - District or taluka-level agro-climatic variation when relevant
+4. For crop recommendations, ALWAYS cover:
+   - Best 2–3 crops for rainfed conditions
+   - Best 2–3 crops if irrigation is available
+   - ICAR-recommended varieties for that district/region
+   - Sowing window and key management tips
+   - Market/cash crop potential
+   - If taluka or soil type is unknown, mention it affects the answer and ask at the end.
+5. For disease queries with symptoms, return the DIAGNOSIS JSON block below.
+6. For market/price queries, return the MARKET JSON block below.
+7. End complex answers with ONE targeted follow-up question to get missing info (taluka, soil type, water source) that would sharpen the advice further.
+8. {lang_instruction or "Respond in English unless the farmer writes in another language."}
 
 DIAGNOSIS JSON FORMAT (use ONLY when farmer describes symptoms or shares disease name):
 {{
@@ -116,7 +138,7 @@ MARKET JSON FORMAT (use ONLY when asked about prices):
   "sellingAdvice": "<when/where to sell>"
 }}
 
-IMPORTANT: For JSON responses, output ONLY the JSON block — no extra text before or after. For all other responses, output plain text."""
+IMPORTANT: For JSON responses, output ONLY the JSON block — no extra text before or after. For all other responses, output plain text with **bold** for section headers."""
 
 
 # ── JSON extraction ───────────────────────────────────────────────────────────
@@ -155,7 +177,7 @@ async def _call_groq(system: str, messages: list[dict]) -> str:
                 "model": MODEL_GROQ_CHAT,
                 "messages": [{"role": "system", "content": system}] + messages,
                 "temperature": 0.7,
-                "max_tokens": 1024,
+                "max_tokens": 2048,
             },
         )
         resp.raise_for_status()
@@ -183,7 +205,7 @@ async def _call_gemini(system: str, messages: list[dict]) -> str:
         resp = await client.post(
             f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_GEMINI_CHAT}:generateContent",
             params={"key": GEMINI_API_KEY},
-            json={"contents": contents, "generationConfig": {"maxOutputTokens": 1024, "temperature": 0.7}},
+            json={"contents": contents, "generationConfig": {"maxOutputTokens": 2048, "temperature": 0.7}},
         )
         resp.raise_for_status()
         data = resp.json()
@@ -201,7 +223,7 @@ async def chat_with_farmmind(
     Returns: { reply: str, type: str, structured_data: dict|None }
     """
     system   = _build_system_prompt(farm_profile)
-    messages = [{"role": m["role"], "content": m["content"]} for m in history[-10:]]
+    messages = [{"role": m["role"], "content": m["content"]} for m in history[-20:]]
     messages.append({"role": "user", "content": message})
 
     reply = None
@@ -226,8 +248,17 @@ async def chat_with_farmmind(
     structured = _try_extract_json(reply)
     resp_type, structured_data = _classify_response(reply, structured)
 
-    # For structured responses, keep raw reply as summary too
+    # For structured responses, build a natural-language intro instead of showing raw JSON
     if structured_data:
-        reply = structured_data.get("immediateAction") or structured_data.get("sellingAdvice") or reply
+        if resp_type == "diagnosis":
+            disease = structured_data.get("disease", "a crop condition")
+            action  = structured_data.get("immediateAction", "")
+            notes   = structured_data.get("additionalNotes", "")
+            reply   = f"I've diagnosed your crop with **{disease}**. {action}" if action else \
+                      f"I've detected **{disease}** in your crop. {notes}".strip()
+        elif resp_type == "market":
+            crop   = structured_data.get("crop", "your crop")
+            advice = structured_data.get("sellingAdvice", "")
+            reply  = advice if advice else f"Here are the current market details for {crop}."
 
     return {"reply": reply, "type": resp_type, "structured_data": structured_data}
