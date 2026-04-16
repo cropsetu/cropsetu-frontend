@@ -40,18 +40,37 @@ PRED_MAX_TOKENS   = 800
 
 # ── DB pool (module-level singleton) ─────────────────────────────────────────
 _pool: Optional[asyncpg.Pool] = None
+_pool_last_fail: float = 0          # epoch of last connection failure
+_POOL_RETRY_COOLDOWN = 30           # seconds before retrying after a failure
 
 
 async def get_pool() -> asyncpg.Pool:
-    global _pool
-    if _pool is None:
+    global _pool, _pool_last_fail
+    if _pool is not None:
+        return _pool
+
+    import time
+    now = time.monotonic()
+    if _pool_last_fail and (now - _pool_last_fail) < _POOL_RETRY_COOLDOWN:
+        raise ConnectionError(
+            "PostgreSQL unreachable — next retry in "
+            f"{int(_POOL_RETRY_COOLDOWN - (now - _pool_last_fail))}s"
+        )
+
+    try:
         _pool = await asyncpg.create_pool(
             DATABASE_URL,
-            min_size=2,
+            min_size=1,
             max_size=10,
             command_timeout=30,
+            timeout=10,
         )
-    return _pool
+        _pool_last_fail = 0
+        return _pool
+    except (ConnectionRefusedError, OSError, asyncpg.PostgresError) as exc:
+        _pool_last_fail = now
+        logger.error("[AgriPredict] DB connection failed: %s — will retry in %ds", exc, _POOL_RETRY_COOLDOWN)
+        raise ConnectionError(f"PostgreSQL unreachable: {exc}") from exc
 
 
 # ── Commodity name normaliser ─────────────────────────────────────────────────
@@ -158,7 +177,11 @@ async def sync_commodity_data(
     district: str | None = None,
     max_pages: int = 10,
 ) -> dict[str, Any]:
-    pool = await get_pool()
+    try:
+        pool = await get_pool()
+    except (ConnectionError, OSError) as exc:
+        logger.warning("[AgriPredict] sync skipped — DB unavailable: %s", exc)
+        return {"synced": 0, "error": "db_unavailable"}
     sync_id = str(uuid.uuid4())
 
     # Log sync start

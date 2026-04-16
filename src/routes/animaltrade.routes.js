@@ -123,11 +123,16 @@ router.get(
 );
 
 router.get('/my', authenticate, async (req, res) => {
-  const listings = await prisma.animalListing.findMany({
-    where: { sellerId: req.user.id },
-    orderBy: { createdAt: 'desc' },
-  });
-  return sendSuccess(res, listings);
+  try {
+    const listings = await prisma.animalListing.findMany({
+      where: { sellerId: req.user.id, status: { not: 'INACTIVE' } },
+      orderBy: { createdAt: 'desc' },
+    });
+    return sendSuccess(res, listings);
+  } catch (err) {
+    console.error('[Animals] GET /my error:', err.message);
+    return sendError(res, 'Failed to load listings', 500);
+  }
 });
 
 router.get('/:id', async (req, res) => {
@@ -163,7 +168,7 @@ router.post(
     body('weight').notEmpty().trim(),
     body('price').isFloat({ min: 0 }),
     body('sellerLocation').notEmpty().trim(),
-    body('tags').optional().isArray(),
+    body('tags').optional(),
     body('milkYield').optional().trim(),
     body('description').optional().trim(),
     body('lat').optional().isFloat({ min: -90,  max: 90  }),
@@ -174,6 +179,10 @@ router.post(
     try {
       const images = await uploadFiles(req.files || [], 'animals');
       const { animal, breed, age, gender, weight, price, milkYield, description, sellerLocation, tags, lat, lng } = req.body;
+
+      // Multer sends repeated fields as an array, but a single value comes as a string.
+      // Coerce to an array so Prisma's String[] column is always happy.
+      const tagsArr = Array.isArray(tags) ? tags : (tags ? [tags] : []);
 
       const listing = await prisma.animalListing.create({
         data: {
@@ -186,7 +195,7 @@ router.post(
           description,
           sellerLocation,
           images,
-          tags: tags || [],
+          tags: tagsArr,
           lat:  lat  != null ? parseFloat(lat)  : null,
           lng:  lng  != null ? parseFloat(lng)  : null,
         },

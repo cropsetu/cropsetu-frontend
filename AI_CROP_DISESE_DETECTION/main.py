@@ -81,7 +81,20 @@ app.include_router(agripredict_router)  # /agripredict/*
 
 @app.get("/health", tags=["System"])
 async def health():
-    return {"status": "ok", "service": "CropGuard AI"}
+    db_ok = False
+    try:
+        from services.agripredict_service import get_pool
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            await conn.fetchval("SELECT 1")
+        db_ok = True
+    except Exception:
+        pass
+    return {
+        "status": "ok" if db_ok else "degraded",
+        "service": "CropGuard AI",
+        "database": "connected" if db_ok else "unreachable",
+    }
 
 
 # ── Startup config check ──────────────────────────────────────────────────────
@@ -99,6 +112,19 @@ async def _check_config():
             logger.warning("[Config] %s not set — feature will be disabled", name)
         else:
             logger.info("[Config] %s configured", name)
+
+    # Test DB connectivity at startup
+    db_url = os.getenv("DATABASE_URL", "")
+    if db_url:
+        try:
+            import asyncpg
+            conn = await asyncpg.connect(db_url, timeout=10)
+            ver = await conn.fetchval("SELECT version()")
+            await conn.close()
+            logger.info("[Config] PostgreSQL OK — %s", ver[:60])
+        except Exception as exc:
+            logger.error("[Config] PostgreSQL UNREACHABLE — %s", exc)
+            logger.error("[Config] AgriPredict features will return errors until DB is fixed")
 
 
 # ── Entrypoint ────────────────────────────────────────────────────────────────

@@ -1,6 +1,9 @@
 /**
  * Seed veterinary doctors for development/testing.
  * Run: node prisma/seed-vets.js
+ *
+ * All doctors are Maharashtra-based with realistic details.
+ * Profile photos use free Pexels images of medical professionals.
  */
 import { PrismaClient } from '@prisma/client';
 
@@ -13,7 +16,7 @@ const DOCTORS = [
     phone: '+919876543210',
     gender: 'male',
     dateOfBirth: new Date('1988-03-15'),
-    profilePhoto: null,
+    profilePhoto: 'https://images.pexels.com/photos/5452293/pexels-photo-5452293.jpeg?auto=compress&cs=tinysrgb&w=400',
     village: 'बारामती',
     taluka: 'बारामती',
     district: 'Pune',
@@ -31,7 +34,7 @@ const DOCTORS = [
     practiceType: 'both',
     clinicName: 'Patil Veterinary Clinic',
     clinicAddress: 'दुकान क्र. 5, बस स्टँडजवळ, बारामती',
-    clinicPhotos: [],
+    clinicPhotos: ['https://images.pexels.com/photos/6234610/pexels-photo-6234610.jpeg?auto=compress&cs=tinysrgb&w=600'],
     animalTypes: ['cow', 'buffalo', 'goat', 'poultry'],
     services: ['general_checkup', 'vaccination', 'artificial_insemination', 'surgery', 'pregnancy_diagnosis', 'emergency'],
     availableDays: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
@@ -55,7 +58,7 @@ const DOCTORS = [
     fullNameMr: 'डॉ. सुनिता जाधव',
     phone: '+919876543211',
     gender: 'female',
-    profilePhoto: null,
+    profilePhoto: 'https://images.pexels.com/photos/5407206/pexels-photo-5407206.jpeg?auto=compress&cs=tinysrgb&w=400',
     village: 'इंदापूर',
     taluka: 'इंदापूर',
     district: 'Pune',
@@ -72,7 +75,7 @@ const DOCTORS = [
     practiceType: 'mobile',
     clinicPhotos: [],
     animalTypes: ['cow', 'buffalo', 'goat'],
-    services: ['general_checkup', 'vaccination', 'deworming', 'farm_visit', 'feed_nutrition_advice'],
+    services: ['general_checkup', 'vaccination', 'farm_visit', 'feed_nutrition_advice'],
     availableDays: ['mon', 'tue', 'wed', 'thu', 'fri'],
     startTime: '08:00',
     endTime: '17:00',
@@ -92,7 +95,7 @@ const DOCTORS = [
     fullNameMr: 'डॉ. विकास देशमुख',
     phone: '+919876543212',
     gender: 'male',
-    profilePhoto: null,
+    profilePhoto: 'https://images.pexels.com/photos/5452201/pexels-photo-5452201.jpeg?auto=compress&cs=tinysrgb&w=400',
     village: 'सातारा',
     taluka: 'सातारा',
     district: 'Satara',
@@ -110,7 +113,7 @@ const DOCTORS = [
     practiceType: 'clinic',
     clinicName: 'Deshmukh Animal Hospital',
     clinicAddress: 'Main Road, Satara',
-    clinicPhotos: [],
+    clinicPhotos: ['https://images.pexels.com/photos/6234610/pexels-photo-6234610.jpeg?auto=compress&cs=tinysrgb&w=600'],
     animalTypes: ['cow', 'buffalo', 'goat', 'sheep', 'horse', 'dog', 'cat'],
     services: ['general_checkup', 'vaccination', 'surgery', 'emergency', 'skin_treatment', 'mastitis_treatment', 'infertility_treatment'],
     availableDays: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
@@ -132,7 +135,7 @@ const DOCTORS = [
     fullNameMr: 'डॉ. प्रिया कुलकर्णी',
     phone: '+919876543213',
     gender: 'female',
-    profilePhoto: null,
+    profilePhoto: 'https://images.pexels.com/photos/5407203/pexels-photo-5407203.jpeg?auto=compress&cs=tinysrgb&w=400',
     village: 'कोल्हापूर',
     taluka: 'कोल्हापूर',
     district: 'Kolhapur',
@@ -149,7 +152,7 @@ const DOCTORS = [
     practiceType: 'mobile',
     clinicPhotos: [],
     animalTypes: ['cow', 'buffalo', 'goat', 'sheep', 'poultry'],
-    services: ['general_checkup', 'vaccination', 'deworming', 'artificial_insemination', 'pregnancy_diagnosis', 'farm_visit', 'telemedicine'],
+    services: ['general_checkup', 'vaccination', 'artificial_insemination', 'pregnancy_diagnosis', 'farm_visit', 'telemedicine'],
     availableDays: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
     startTime: '09:00',
     endTime: '17:00',
@@ -171,7 +174,7 @@ const DOCTORS = [
     fullNameMr: 'डॉ. सुरेश मोरे',
     phone: '+919876543214',
     gender: 'male',
-    profilePhoto: null,
+    profilePhoto: 'https://images.pexels.com/photos/7474859/pexels-photo-7474859.jpeg?auto=compress&cs=tinysrgb&w=400',
     village: 'नाशिक',
     taluka: 'नाशिक',
     district: 'Nashik',
@@ -189,7 +192,7 @@ const DOCTORS = [
     practiceType: 'both',
     clinicName: 'More Pashuvaidyak Clinic',
     clinicAddress: 'College Road, Nashik',
-    clinicPhotos: [],
+    clinicPhotos: ['https://images.pexels.com/photos/6234610/pexels-photo-6234610.jpeg?auto=compress&cs=tinysrgb&w=600'],
     animalTypes: ['cow', 'buffalo', 'goat', 'sheep', 'pig'],
     services: ['general_checkup', 'vaccination', 'artificial_insemination', 'pregnancy_diagnosis', 'infertility_treatment', 'emergency', 'postmortem', 'farm_visit'],
     availableDays: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
@@ -211,7 +214,7 @@ const DOCTORS = [
     fullNameMr: 'डॉ. अनिल भोसले',
     phone: '+919876543215',
     gender: 'male',
-    profilePhoto: null,
+    profilePhoto: 'https://images.pexels.com/photos/5452293/pexels-photo-5452293.jpeg?auto=compress&cs=tinysrgb&w=400',
     village: 'सोलापूर',
     taluka: 'सोलापूर',
     district: 'Solapur',
@@ -231,7 +234,7 @@ const DOCTORS = [
     clinicAddress: 'Station Road, Solapur',
     clinicPhotos: [],
     animalTypes: ['cow', 'buffalo', 'goat', 'poultry', 'sheep'],
-    services: ['general_checkup', 'vaccination', 'deworming', 'emergency', 'farm_visit', 'feed_nutrition_advice'],
+    services: ['general_checkup', 'vaccination', 'emergency', 'farm_visit', 'feed_nutrition_advice'],
     availableDays: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
     startTime: '08:00',
     endTime: '18:30',
@@ -253,10 +256,10 @@ const DOCTORS = [
     fullNameMr: 'डॉ. मीना गायकवाड',
     phone: '+919876543216',
     gender: 'female',
-    profilePhoto: null,
-    village: 'औरंगाबाद',
-    taluka: 'औरंगाबाद',
-    district: 'Aurangabad',
+    profilePhoto: 'https://images.pexels.com/photos/5407206/pexels-photo-5407206.jpeg?auto=compress&cs=tinysrgb&w=400',
+    village: 'छत्रपती संभाजीनगर',
+    taluka: 'छत्रपती संभाजीनगर',
+    district: 'Chhatrapati Sambhajinagar',
     state: 'Maharashtra',
     pincode: '431001',
     latitude: 19.8762,
@@ -270,7 +273,7 @@ const DOCTORS = [
     practiceType: 'mobile',
     clinicPhotos: [],
     animalTypes: ['cow', 'buffalo', 'goat', 'sheep', 'dog', 'cat'],
-    services: ['general_checkup', 'vaccination', 'deworming', 'skin_treatment', 'farm_visit', 'telemedicine'],
+    services: ['general_checkup', 'vaccination', 'skin_treatment', 'farm_visit', 'telemedicine'],
     availableDays: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
     startTime: '07:30',
     endTime: '16:00',
@@ -292,7 +295,7 @@ const DOCTORS = [
     fullNameMr: 'डॉ. संतोष कांबळे',
     phone: '+919876543217',
     gender: 'male',
-    profilePhoto: null,
+    profilePhoto: 'https://images.pexels.com/photos/5452201/pexels-photo-5452201.jpeg?auto=compress&cs=tinysrgb&w=400',
     village: 'लातूर',
     taluka: 'लातूर',
     district: 'Latur',
@@ -310,7 +313,7 @@ const DOCTORS = [
     practiceType: 'clinic',
     clinicName: 'Kamble Animal Care Centre',
     clinicAddress: 'Main Bazaar, Latur',
-    clinicPhotos: [],
+    clinicPhotos: ['https://images.pexels.com/photos/6234610/pexels-photo-6234610.jpeg?auto=compress&cs=tinysrgb&w=600'],
     animalTypes: ['cow', 'buffalo', 'goat', 'sheep', 'horse'],
     services: ['general_checkup', 'vaccination', 'artificial_insemination', 'pregnancy_diagnosis', 'infertility_treatment', 'emergency', 'postmortem'],
     availableDays: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
@@ -332,7 +335,7 @@ const DOCTORS = [
     fullNameMr: 'डॉ. रोहिणी शिंदे',
     phone: '+919876543218',
     gender: 'female',
-    profilePhoto: null,
+    profilePhoto: 'https://images.pexels.com/photos/5407203/pexels-photo-5407203.jpeg?auto=compress&cs=tinysrgb&w=400',
     village: 'अमरावती',
     taluka: 'अमरावती',
     district: 'Amravati',
@@ -349,7 +352,7 @@ const DOCTORS = [
     practiceType: 'mobile',
     clinicPhotos: [],
     animalTypes: ['cow', 'buffalo', 'goat', 'poultry', 'rabbit', 'fish'],
-    services: ['general_checkup', 'vaccination', 'deworming', 'farm_visit', 'feed_nutrition_advice', 'telemedicine'],
+    services: ['general_checkup', 'vaccination', 'farm_visit', 'feed_nutrition_advice', 'telemedicine'],
     availableDays: ['mon', 'tue', 'wed', 'thu', 'fri'],
     startTime: '10:00',
     endTime: '17:00',
@@ -371,7 +374,7 @@ const DOCTORS = [
     fullNameMr: 'डॉ. गणेश पवार',
     phone: '+919876543219',
     gender: 'male',
-    profilePhoto: null,
+    profilePhoto: 'https://images.pexels.com/photos/7474859/pexels-photo-7474859.jpeg?auto=compress&cs=tinysrgb&w=400',
     village: 'जळगाव',
     taluka: 'जळगाव',
     district: 'Jalgaon',
@@ -390,7 +393,7 @@ const DOCTORS = [
     practiceType: 'both',
     clinicName: 'Pawar Veterinary & Research Clinic',
     clinicAddress: 'College Road, Jalgaon',
-    clinicPhotos: [],
+    clinicPhotos: ['https://images.pexels.com/photos/6234610/pexels-photo-6234610.jpeg?auto=compress&cs=tinysrgb&w=600'],
     animalTypes: ['cow', 'buffalo', 'goat', 'sheep', 'horse', 'camel', 'pig'],
     services: ['general_checkup', 'vaccination', 'surgery', 'emergency', 'mastitis_treatment', 'infertility_treatment', 'artificial_insemination', 'pregnancy_diagnosis', 'postmortem', 'farm_visit'],
     availableDays: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'],
@@ -399,8 +402,8 @@ const DOCTORS = [
     emergencyAvailable: true,
     consultationFee: 350,
     visitFee: 900,
-    feeNoteEn: 'Senior specialist — fee may vary for complex cases',
-    feeNoteMr: 'वरिष्ठ तज्ञ — जटिल प्रकरणांसाठी शुल्क बदलू शकते',
+    feeNoteEn: 'Senior specialist - fee may vary for complex cases',
+    feeNoteMr: 'वरिष्ठ तज्ञ - जटिल प्रकरणांसाठी शुल्क बदलू शकते',
     languages: ['marathi', 'hindi', 'english', 'gujarati'],
     verificationStatus: 'verified',
     isActive: true,
@@ -412,9 +415,9 @@ const DOCTORS = [
 ];
 
 async function main() {
-  console.log('Seeding veterinary doctors...');
+  console.log('Seeding veterinary doctors (with profile photos)...');
   let created = 0;
-  let skipped = 0;
+  let updated = 0;
 
   for (const doc of DOCTORS) {
     const existing = await prisma.veterinaryDoctor.findUnique({
@@ -423,14 +426,14 @@ async function main() {
 
     if (existing) {
       await prisma.veterinaryDoctor.update({ where: { phone: doc.phone }, data: doc });
-      skipped++;
+      updated++;
     } else {
       await prisma.veterinaryDoctor.create({ data: doc });
       created++;
     }
   }
 
-  console.log(`Done: ${created} created, ${skipped} updated.`);
+  console.log(`Done: ${created} created, ${updated} updated (all with profile photos).`);
 }
 
 main().catch(console.error).finally(() => prisma.$disconnect());

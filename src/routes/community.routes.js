@@ -177,6 +177,30 @@ router.post('/posts/:id/like', authenticate, async (req, res) => {
   return sendSuccess(res, { liked: true });
 });
 
+// ── Saved (bookmarked) posts for the current user ────────────────────────────
+router.get('/saved', authenticate, async (req, res) => {
+  const page  = parseInt(req.query.page  || '1', 10);
+  const limit = parseInt(req.query.limit || '20', 10);
+
+  const [bookmarks, total] = await Promise.all([
+    prisma.postBookmark.findMany({
+      where: { userId: req.user.id },
+      include: {
+        post: {
+          include: { author: { select: { id: true, name: true, avatar: true } } },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.postBookmark.count({ where: { userId: req.user.id } }),
+  ]);
+
+  const posts = bookmarks.map((b) => ({ ...b.post, bookmarked: true }));
+  return sendSuccess(res, posts, 200, paginationMeta(total, page, limit));
+});
+
 // ── Bookmark toggle ───────────────────────────────────────────────────────────
 router.post('/posts/:id/bookmark', authenticate, async (req, res) => {
   const post = await prisma.post.findUnique({ where: { id: req.params.id } });

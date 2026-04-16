@@ -36,14 +36,20 @@ async function proxyGet(res, path, timeoutMs = 15_000) {
     clearTimeout(timer);
     const body = await resp.json();
     if (!resp.ok) {
-      return sendError(res, body?.detail || `AgriPredict service error`, resp.status);
+      const detail = body?.detail || 'AgriPredict service error';
+      const isDbDown = typeof detail === 'string' && detail.includes('PostgreSQL unreachable');
+      return sendError(
+        res,
+        isDbDown ? 'Price database temporarily unavailable — please try again later' : detail,
+        resp.status,
+      );
     }
     // FastAPI wraps in { success, data } — pass data through transparently
     return res.status(200).json(body);
   } catch (err) {
     clearTimeout(timer);
     if (err.name === 'AbortError') return sendError(res, 'AgriPredict service timeout', 504);
-    return sendError(res, 'AgriPredict service unavailable', 503);
+    return sendError(res, 'Price service temporarily unavailable — please try again later', 503);
   }
 }
 
@@ -60,13 +66,19 @@ async function proxyPost(res, path, body, timeoutMs = 120_000) {
     clearTimeout(timer);
     const out = await resp.json();
     if (!resp.ok) {
-      return sendError(res, out?.detail || `AgriPredict service error`, resp.status);
+      const detail = out?.detail || 'AgriPredict service error';
+      const isDbDown = typeof detail === 'string' && detail.includes('PostgreSQL unreachable');
+      return sendError(
+        res,
+        isDbDown ? 'Price database temporarily unavailable — please try again later' : detail,
+        resp.status,
+      );
     }
     return res.status(resp.status).json(out);
   } catch (err) {
     clearTimeout(timer);
     if (err.name === 'AbortError') return sendError(res, 'Prediction timed out — try again', 504);
-    return sendError(res, 'AgriPredict service unavailable', 503);
+    return sendError(res, 'Price service temporarily unavailable — please try again later', 503);
   }
 }
 
