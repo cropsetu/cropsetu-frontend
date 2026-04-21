@@ -1,0 +1,68 @@
+{
+  "expo": {
+    "name": "FarmEasy",
+    "slug": "farmeasy",
+    "scheme": "farmeasy",
+    "version": "1.0.0",
+    "newArchEnabled": false,
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1B4332"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.farmeasy.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "FarmEasy needs camera access to photograph your crops for AI disease analysis.",
+        "NSPhotoLibraryUsageDescription": "FarmEasy needs photo library access to upload crop images for analysis.",
+        "NSLocationWhenInUseUsageDescription": "FarmEasy uses your location to show local weather conditions for your farm."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1B4332"
+      },
+      "package": "com.farmeasy.app",
+      "permissions": [
+        "CAMERA",
+        "READ_MEDIA_IMAGES",
+        "ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "FarmEasy needs camera access to photograph your crops for AI disease analysis."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "FarmEasy uses your location to show local weather conditions for your farm."
+        }
+      ],
+      "expo-secure-store",
+      "react-native-compressor"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "27296e36-c1e3-4bb4-9162-1406423ac205"
+      }
+    },
+    "owner": "shubhamyeljalebcs"
+  }
+}
