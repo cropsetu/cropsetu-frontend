@@ -119,7 +119,7 @@ function CategoryDrawer({ visible, categories, selectedCat, language, onSelect, 
 
           {categories.map(cat => {
             const langKey = language === 'mr' ? 'nameMr' : language === 'hi' ? 'nameHi' : language === 'ta' ? 'nameTa' : language === 'kn' ? 'nameKn' : language === 'ml' ? 'nameMl' : language === 'te' ? 'nameTe' : language === 'bn' ? 'nameBn' : language === 'gu' ? 'nameGu' : language === 'pa' ? 'namePa' : null;
-            const label = (langKey && cat[langKey]) || cat.name;
+            const label = (langKey && cat[langKey]) || cat.nameHi || cat.name;
             const active = selectedCat === cat.id;
             return (
               <TouchableOpacity
@@ -230,7 +230,7 @@ function CategoryPills({ categories, selected, onSelect, language, t }) {
 
         {categories.map(cat => {
           const langKey = language === 'mr' ? 'nameMr' : language === 'hi' ? 'nameHi' : language === 'ta' ? 'nameTa' : language === 'kn' ? 'nameKn' : language === 'ml' ? 'nameMl' : language === 'te' ? 'nameTe' : language === 'bn' ? 'nameBn' : language === 'gu' ? 'nameGu' : language === 'pa' ? 'namePa' : null;
-          const label = (langKey && cat[langKey]) || cat.name;
+          const label = (langKey && cat[langKey]) || cat.nameHi || cat.name;
           const active  = selected === cat.id;
           const iconName = resolveIcon(cat.icon);
           const color    = cat.color || GREEN;

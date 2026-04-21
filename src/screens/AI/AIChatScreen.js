@@ -973,7 +973,7 @@ export default function AIChatScreen({ navigation, route }) {
           <Ionicons name="menu-outline" size={24} color={TEXT} />
         </TouchableOpacity>
         <TouchableOpacity style={S.headerCenter} activeOpacity={0.7} onPress={() => {}}>
-          <Text style={S.headerTitle}>FarmMind</Text>
+          <Text style={S.headerTitle}>{t('aiChat.farmMind')}</Text>
           <Ionicons name="chevron-down" size={14} color={MUTED} />
         </TouchableOpacity>
         <TouchableOpacity onPress={() => {
