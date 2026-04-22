@@ -4,7 +4,7 @@
     "slug": "cropsetu",
     "scheme": "cropsetu",
     "version": "1.0.0",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
