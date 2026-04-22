@@ -17,13 +17,15 @@ const DEV_HOST =
   Platform.OS === 'android' ? '10.0.2.2'  :   // Android emulator → host loopback
                               'localhost';     // iOS simulator
 
-export const API_BASE_URL = __DEV__
-  ? `http://${DEV_HOST}:3001/api/v1`
-  : 'https://resilient-vision-production-917c.up.railway.app/api/v1';
+// Prod URL can be overridden per-build via EAS env (EXPO_PUBLIC_API_BASE_URL in eas.json).
+// Default falls back to the production Railway deployment.
+const PROD_API = process.env.EXPO_PUBLIC_API_BASE_URL
+  || 'https://cropsetu-backend-production.up.railway.app/api/v1';
+const PROD_SOCKET = process.env.EXPO_PUBLIC_SOCKET_URL
+  || 'wss://cropsetu-backend-production.up.railway.app';
 
-export const SOCKET_URL = __DEV__
-  ? `http://${DEV_HOST}:3001`
-  : 'wss://resilient-vision-production-917c.up.railway.app';
+export const API_BASE_URL = __DEV__ ? `http://${DEV_HOST}:3001/api/v1` : PROD_API;
+export const SOCKET_URL   = __DEV__ ? `http://${DEV_HOST}:3001`       : PROD_SOCKET;
 
 // ── Input / upload limits ──────────────────────────────────────────────────
 export const MAX_MESSAGE_LENGTH   = 2000;
