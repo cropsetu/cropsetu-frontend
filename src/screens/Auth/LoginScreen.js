@@ -38,8 +38,10 @@ export default function LoginScreen() {
     try {
       const result = await sendOtp(phone);
       setStep(STEPS.OTP);
-      // Dev mode: auto-fill OTP when server returns it (MSG91 not configured)
-      if (result?.devOtp) setOtp(result.devOtp);
+      // Dev mode: auto-fill OTP when server returns it (MSG91 not configured).
+      // Response is wrapped as { success, data: { sessionId, devOtp } }.
+      const devOtp = result?.data?.devOtp ?? result?.devOtp;
+      if (devOtp) setOtp(devOtp);
     } catch (err) {
       Alert.alert(t('login.error'), err.response?.data?.error?.message || t('login.otpError'));
     } finally {
