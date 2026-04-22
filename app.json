@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "FarmEasy",
-    "slug": "farmeasy",
-    "scheme": "farmeasy",
+    "name": "CropSetu",
+    "slug": "cropsetu",
+    "scheme": "cropsetu",
     "version": "1.0.0",
     "newArchEnabled": false,
     "orientation": "portrait",
