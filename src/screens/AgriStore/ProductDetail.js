@@ -187,7 +187,7 @@ export default function ProductDetail({ route, navigation }) {
   const saving     = product.mrp > product.price ? product.mrp - product.price : 0;
   const inStock    = (product.stock ?? (product.inStock ? 1 : 0)) > 0;
   const reviews    = product.ratingCount ?? product.reviews ?? 0;
-  const brandLabel = product.brand || product.category?.name || 'FarmEasy';
+  const brandLabel = product.brand || product.category?.name || 'CropSetu';
   const mfrLabel   = product.manufacturer || brandLabel;
 
   const deliveryDate = new Date();
@@ -275,7 +275,7 @@ export default function ProductDetail({ route, navigation }) {
     { label: 'Brand',            value: brandLabel },
     { label: 'Country of Origin', value: product.countryOfOrigin || 'India' },
     { label: 'Product Code',     value: `FE-${(product.id || '').slice(0, 8).toUpperCase()}` },
-    { label: 'Quality Check',    value: 'FarmEasy Verified' },
+    { label: 'Quality Check',    value: 'CropSetu Verified' },
     { label: 'Customer Support', value: 'Mon–Sat, 9 AM–6 PM' },
   ];
 

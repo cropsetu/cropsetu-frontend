@@ -1,6 +1,6 @@
 /** Bengali — বাংলা */
 export default {
-  appName: 'FarmEasy',
+  appName: 'CropSetu',
   loading: 'লোড হচ্ছে...',
   cancel: 'বাতিল',
   save: 'সংরক্ষণ',
@@ -152,7 +152,7 @@ export default {
   help: 'সাহায্য ও সহায়তা',
   helpSub: 'FAQ ও আমাদের সাথে যোগাযোগ',
   terms: 'শর্তাবলী ও গোপনীয়তা',
-  rate: 'FarmEasy রেট করুন',
+  rate: 'CropSetu রেট করুন',
   rateSub: 'আপনার মতামত শেয়ার করুন',
   govSchemes: 'সরকারি প্রকল্প',
   govSchemesSub: 'PM কিসান, ফসল বীমা, মাটি স্বাস্থ্য কার্ড ও আরো',
@@ -177,7 +177,7 @@ export default {
     otpSentTo: '+91 {{phone}} তে পাঠানো হয়েছে',
     verifyLogin: 'যাচাই করুন ও লগিন করুন',
     resendOtp: 'OTP আবার পাঠান',
-    welcome: 'FarmEasy তে স্বাগতম!',
+    welcome: 'CropSetu তে স্বাগতম!',
     yourName: 'আপনাকে কী বলে ডাকব?',
     namePlaceholder: 'আপনার নাম',
     getStarted: 'শুরু করা যাক →',
@@ -283,7 +283,7 @@ export default {
     defaultBadge: 'ডিফল্ট',
     addNewAddress: 'নতুন ঠিকানা যোগ',
     soldBy: 'বিক্রেতা',
-    farmEasyDirect: 'FarmEasy সরাসরি',
+    farmEasyDirect: 'CropSetu সরাসরি',
     otherSellers: 'অন্যান্য বিক্রেতা',
     similarProducts: 'একই রকম পণ্য',
     highlightsTitle: 'হাইলাইটস',
@@ -292,7 +292,7 @@ export default {
     manufacturer: 'প্রস্তুতকারক',
     returnPolicy: 'রিটার্ন পলিসি',
     codPolicy: 'ক্যাশ অন ডেলিভারি পলিসি',
-    assuredPolicy: 'FarmEasy নিশ্চয়তা',
+    assuredPolicy: 'CropSetu নিশ্চয়তা',
     buyAt: '₹{{price}} তে কিনুন',
   },
 
@@ -302,7 +302,7 @@ export default {
     sellerVerified: 'বিক্রেতা যাচাইকৃত',
     animalDetails: 'পশুর বিবরণ', sellerInfo: 'বিক্রেতার তথ্য',
     postedDate: '{{date}} তে পোস্ট করা হয়েছে',
-    safetyTipsText: '• কেনার আগে পশু সরাসরি দেখুন\n• টিকা সার্টিফিকেট চান\n• পশু পাওয়ার পরেই অর্থ পাঠান\n• FarmEasy লেনদেনের দায়িত্ব নেয় না',
+    safetyTipsText: '• কেনার আগে পশু সরাসরি দেখুন\n• টিকা সার্টিফিকেট চান\n• পশু পাওয়ার পরেই অর্থ পাঠান\n• CropSetu লেনদেনের দায়িত্ব নেয় না',
   },
 
   addAnimal: {
@@ -500,7 +500,7 @@ export default {
     callUs: 'আমাদের কল করুন: 1800-XXX-XXXX (বিনামূল্যে)',
     termsLabel: 'শর্তাবলী, নীতিমালা ও লাইসেন্স',
     browseFAQs: 'FAQ দেখুন', faqsSub: 'সাধারণ প্রশ্নের উত্তর খুঁজুন',
-    versionText: 'FarmEasy v1.0.0 · ভারতীয় কৃষকদের জন্য ভালোবাসায় তৈরি',
+    versionText: 'CropSetu v1.0.0 · ভারতীয় কৃষকদের জন্য ভালোবাসায় তৈরি',
     animals: 'পশু', orders: 'অর্ডার', rentals: 'ভাড়া',
     selectState: 'আপনার রাজ্য বেছে নিন',
     manualLang: 'ম্যানুয়াল',
@@ -832,7 +832,7 @@ export default {
   },
 
   sellerProfile: {
-    backToFarmEasy: 'FarmEasy তে ফিরুন',
+    backToCropSetu: 'CropSetu তে ফিরুন',
   },
   crops: {
     soybean: 'সয়াবিন', cotton: 'তুলা', rice: 'ধান', wheat: 'গম',

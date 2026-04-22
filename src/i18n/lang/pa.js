@@ -1,6 +1,6 @@
 /** Punjabi — ਪੰਜਾਬੀ */
 export default {
-  appName: 'FarmEasy',
+  appName: 'CropSetu',
   loading: 'ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ...',
   cancel: 'ਰੱਦ ਕਰੋ',
   save: 'ਸੁਰੱਖਿਅਤ ਕਰੋ',
@@ -152,7 +152,7 @@ export default {
   help: 'ਮਦਦ ਅਤੇ ਸਹਾਇਤਾ',
   helpSub: 'FAQ ਅਤੇ ਸਾਡੇ ਨਾਲ ਸੰਪਰਕ',
   terms: 'ਸ਼ਰਤਾਂ ਅਤੇ ਗੋਪਨੀਯਤਾ',
-  rate: 'FarmEasy ਨੂੰ ਰੇਟ ਕਰੋ',
+  rate: 'CropSetu ਨੂੰ ਰੇਟ ਕਰੋ',
   rateSub: 'ਆਪਣੀ ਰਾਏ ਸਾਂਝੀ ਕਰੋ',
   govSchemes: 'ਸਰਕਾਰੀ ਯੋਜਨਾਵਾਂ',
   govSchemesSub: 'PM ਕਿਸਾਨ, ਫ਼ਸਲ ਬੀਮਾ, ਮਿੱਟੀ ਸਿਹਤ ਕਾਰਡ ਅਤੇ ਹੋਰ',
@@ -177,7 +177,7 @@ export default {
     otpSentTo: '+91 {{phone}} ਤੇ ਭੇਜਿਆ',
     verifyLogin: 'ਤਸਦੀਕ ਕਰੋ ਅਤੇ ਲਾਗਇਨ',
     resendOtp: 'OTP ਦੁਬਾਰਾ ਭੇਜੋ',
-    welcome: 'FarmEasy ਵਿੱਚ ਜੀ ਆਇਆਂ!',
+    welcome: 'CropSetu ਵਿੱਚ ਜੀ ਆਇਆਂ!',
     yourName: 'ਤੁਹਾਨੂੰ ਕੀ ਕਿਹਾ ਜਾਵੇ?',
     namePlaceholder: 'ਤੁਹਾਡਾ ਨਾਮ',
     getStarted: 'ਸ਼ੁਰੂ ਕਰੀਏ →',
@@ -283,7 +283,7 @@ export default {
     defaultBadge: 'ਡਿਫਾਲਟ',
     addNewAddress: 'ਨਵਾਂ ਪਤਾ ਜੋੜੋ',
     soldBy: 'ਵੇਚਣ ਵਾਲਾ',
-    farmEasyDirect: 'FarmEasy ਸਿੱਧਾ',
+    farmEasyDirect: 'CropSetu ਸਿੱਧਾ',
     otherSellers: 'ਹੋਰ ਵੇਚਣ ਵਾਲੇ',
     similarProducts: 'ਮਿਲਦੇ-ਜੁਲਦੇ ਉਤਪਾਦ',
     highlightsTitle: 'ਮੁੱਖ ਗੱਲਾਂ',
@@ -292,7 +292,7 @@ export default {
     manufacturer: 'ਨਿਰਮਾਤਾ',
     returnPolicy: 'ਵਾਪਸੀ ਨੀਤੀ',
     codPolicy: 'ਡਿਲਿਵਰੀ ਤੇ ਨਕਦ ਨੀਤੀ',
-    assuredPolicy: 'FarmEasy ਗਾਰੰਟੀ',
+    assuredPolicy: 'CropSetu ਗਾਰੰਟੀ',
     buyAt: '₹{{price}} ਵਿੱਚ ਖਰੀਦੋ',
   },
 
@@ -302,7 +302,7 @@ export default {
     sellerVerified: 'ਵਿਕਰੇਤਾ ਤਸਦੀਕ ਕੀਤਾ',
     animalDetails: 'ਪਸ਼ੂ ਵੇਰਵਾ', sellerInfo: 'ਵਿਕਰੇਤਾ ਜਾਣਕਾਰੀ',
     postedDate: '{{date}} ਨੂੰ ਪੋਸਟ ਕੀਤਾ',
-    safetyTipsText: '• ਖਰੀਦਣ ਤੋਂ ਪਹਿਲਾਂ ਪਸ਼ੂ ਨੂੰ ਸਿੱਧਾ ਜਾਂਚੋ\n• ਟੀਕਾਕਰਨ ਸਰਟੀਫ਼ਿਕੇਟ ਮੰਗੋ\n• ਪਸ਼ੂ ਮਿਲਣ ਤੋਂ ਬਾਅਦ ਹੀ ਪੈਸੇ ਦਿਓ\n• FarmEasy ਲੈਣ-ਦੇਣ ਲਈ ਜ਼ਿੰਮੇਵਾਰ ਨਹੀਂ',
+    safetyTipsText: '• ਖਰੀਦਣ ਤੋਂ ਪਹਿਲਾਂ ਪਸ਼ੂ ਨੂੰ ਸਿੱਧਾ ਜਾਂਚੋ\n• ਟੀਕਾਕਰਨ ਸਰਟੀਫ਼ਿਕੇਟ ਮੰਗੋ\n• ਪਸ਼ੂ ਮਿਲਣ ਤੋਂ ਬਾਅਦ ਹੀ ਪੈਸੇ ਦਿਓ\n• CropSetu ਲੈਣ-ਦੇਣ ਲਈ ਜ਼ਿੰਮੇਵਾਰ ਨਹੀਂ',
   },
 
   addAnimal: {
@@ -500,7 +500,7 @@ export default {
     callUs: 'ਸਾਨੂੰ ਕਾਲ ਕਰੋ: 1800-XXX-XXXX (ਮੁਫ਼ਤ)',
     termsLabel: 'ਸ਼ਰਤਾਂ, ਨੀਤੀਆਂ ਅਤੇ ਲਾਇਸੈਂਸ',
     browseFAQs: 'FAQ ਵੇਖੋ', faqsSub: 'ਆਮ ਸਵਾਲਾਂ ਦੇ ਜਵਾਬ ਲੱਭੋ',
-    versionText: 'FarmEasy v1.0.0 · ਭਾਰਤੀ ਕਿਸਾਨਾਂ ਲਈ ਪਿਆਰ ਨਾਲ ਬਣਾਇਆ',
+    versionText: 'CropSetu v1.0.0 · ਭਾਰਤੀ ਕਿਸਾਨਾਂ ਲਈ ਪਿਆਰ ਨਾਲ ਬਣਾਇਆ',
     animals: 'ਪਸ਼ੂ', orders: 'ਆਰਡਰ', rentals: 'ਕਿਰਾਏ',
     selectState: 'ਆਪਣਾ ਸੂਬਾ ਚੁਣੋ',
     manualLang: 'ਮੈਨੂਅਲ',
@@ -832,7 +832,7 @@ export default {
   },
 
   sellerProfile: {
-    backToFarmEasy: 'FarmEasy ਤੇ ਵਾਪਸ',
+    backToCropSetu: 'CropSetu ਤੇ ਵਾਪਸ',
   },
   crops: {
     soybean: 'ਸੋਇਆਬੀਨ', cotton: 'ਕਪਾਹ', rice: 'ਝੋਨਾ', wheat: 'ਕਣਕ',

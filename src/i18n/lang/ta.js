@@ -1,6 +1,6 @@
 /** Tamil — தமிழ் */
 export default {
-  appName: 'FarmEasy',
+  appName: 'CropSetu',
   loading: 'ஏற்றுகிறது...',
   cancel: 'ரத்து',
   save: 'சேமி',
@@ -152,7 +152,7 @@ export default {
   help: 'உதவி & ஆதரவு',
   helpSub: 'அடிக்கடி கேட்கப்படும் கேள்விகள் & தொடர்பு',
   terms: 'விதிமுறைகள் & தனியுரிமை',
-  rate: 'FarmEasy-ஐ மதிப்பிடு',
+  rate: 'CropSetu-ஐ மதிப்பிடு',
   rateSub: 'உங்கள் கருத்தை பகிரவும்',
   govSchemes: 'அரசு திட்டங்கள்',
   govSchemesSub: 'PM கிசான், பயிர் காப்பீடு, மண் சுகாதார அட்டை & மேலும்',
@@ -177,7 +177,7 @@ export default {
     otpSentTo: '+91 {{phone}} க்கு அனுப்பப்பட்டது',
     verifyLogin: 'சரிபார்த்து உள்நுழை',
     resendOtp: 'OTP மீண்டும் அனுப்பு',
-    welcome: 'FarmEasy-க்கு வரவேற்கிறோம்!',
+    welcome: 'CropSetu-க்கு வரவேற்கிறோம்!',
     yourName: 'உங்களை என்னவென்று அழைப்போம்?',
     namePlaceholder: 'உங்கள் பெயர்',
     getStarted: 'தொடங்கலாம் →',
@@ -318,7 +318,7 @@ export default {
     defaultBadge: 'இயல்புநிலை',
     addNewAddress: 'புதிய முகவரி சேர்',
     soldBy: 'விற்பனையாளர்',
-    farmEasyDirect: 'FarmEasy நேரடி',
+    farmEasyDirect: 'CropSetu நேரடி',
     otherSellers: 'மற்ற விற்பனையாளர்கள்',
     similarProducts: 'இதே போன்ற பொருட்கள்',
     highlightsTitle: 'சிறப்பம்சங்கள்',
@@ -327,7 +327,7 @@ export default {
     manufacturer: 'உற்பத்தியாளர்',
     returnPolicy: 'திரும்பப்பெறல் கொள்கை',
     codPolicy: 'டெலிவரியில் பணம் கொள்கை',
-    assuredPolicy: 'FarmEasy உத்தரவாதம்',
+    assuredPolicy: 'CropSetu உத்தரவாதம்',
     buyAt: '₹{{price}} க்கு வாங்கு',
   },
 
@@ -339,7 +339,7 @@ export default {
     animalDetails: 'கால்நடை விவரங்கள்',
     sellerInfo: 'விற்பவர் தகவல்',
     postedDate: '{{date}} அன்று இடுகையிட்டது',
-    safetyTipsText: '• வாங்குவதற்கு முன் கால்நடையை நேரில் பார்க்கவும்\n• தடுப்பூசி சான்றிதழை கேளுங்கள்\n• கால்நடை கிடைத்த பிறகே பணம் மாற்றுங்கள்\n• FarmEasy பரிவர்த்தனைகளுக்கு பொறுப்பல்ல',
+    safetyTipsText: '• வாங்குவதற்கு முன் கால்நடையை நேரில் பார்க்கவும்\n• தடுப்பூசி சான்றிதழை கேளுங்கள்\n• கால்நடை கிடைத்த பிறகே பணம் மாற்றுங்கள்\n• CropSetu பரிவர்த்தனைகளுக்கு பொறுப்பல்ல',
   },
 
   addAnimal: {
@@ -626,7 +626,7 @@ export default {
     termsLabel: 'விதிமுறைகள், கொள்கைகள் மற்றும் உரிமங்கள்',
     browseFAQs: 'FAQகளை பார்க்கவும்',
     faqsSub: 'பொதுவான கேள்விகளுக்கு பதில்களை கண்டுபிடிக்கவும்',
-    versionText: 'FarmEasy v1.0.0 · இந்திய விவசாயிகளுக்காக அன்புடன் உருவாக்கப்பட்டது',
+    versionText: 'CropSetu v1.0.0 · இந்திய விவசாயிகளுக்காக அன்புடன் உருவாக்கப்பட்டது',
     animals: 'கால்நடைகள்',
     orders: 'ஆர்டர்கள்',
     rentals: 'வாடகைகள்',
@@ -973,7 +973,7 @@ export default {
   },
 
   sellerProfile: {
-    backToFarmEasy: 'FarmEasy-க்கு திரும்பு',
+    backToCropSetu: 'CropSetu-க்கு திரும்பு',
   },
   crops: {
     soybean: 'சோயாபீன்', cotton: 'பருத்தி', rice: 'அரிசி', wheat: 'கோதுமை',

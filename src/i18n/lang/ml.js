@@ -1,6 +1,6 @@
 /** Malayalam — മലയാളം */
 export default {
-  appName: 'FarmEasy',
+  appName: 'CropSetu',
   loading: 'ലോഡ് ചെയ്യുന്നു...',
   cancel: 'റദ്ദാക്കുക',
   save: 'സേവ് ചെയ്യുക',
@@ -152,7 +152,7 @@ export default {
   help: 'സഹായം & പിന്തുണ',
   helpSub: 'FAQ-കൾ & ഞങ്ങളെ ബന്ധപ്പെടുക',
   terms: 'നിബന്ധനകൾ & സ്വകാര്യത',
-  rate: 'FarmEasy റേറ്റ് ചെയ്യുക',
+  rate: 'CropSetu റേറ്റ് ചെയ്യുക',
   rateSub: 'നിങ്ങളുടെ അഭിപ്രായം പങ്കിടുക',
   govSchemes: 'സർക്കാർ പദ്ധതികൾ',
   govSchemesSub: 'PM കിസാൻ, വിള ഇൻഷുറൻസ്, മണ്ണ് ആരോഗ്യ കാർഡ് & കൂടുതൽ',
@@ -177,7 +177,7 @@ export default {
     otpSentTo: '+91 {{phone}}-ലേക്ക് അയച്ചു',
     verifyLogin: 'പരിശോധിച്ച് ലോഗിൻ ചെയ്യുക',
     resendOtp: 'OTP വീണ്ടും അയക്കുക',
-    welcome: 'FarmEasy-ലേക്ക് സ്വാഗതം!',
+    welcome: 'CropSetu-ലേക്ക് സ്വാഗതം!',
     yourName: 'നിങ്ങളെ എന്ന് വിളിക്കണം?',
     namePlaceholder: 'നിങ്ങളുടെ പേര്',
     getStarted: 'ആരംഭിക്കാം →',
@@ -283,7 +283,7 @@ export default {
     defaultBadge: 'ഡിഫോള്‍ട്ട്',
     addNewAddress: 'പുതിയ വിലാസം ചേര്‍ക്കുക',
     soldBy: 'വില്‍ക്കുന്നത്',
-    farmEasyDirect: 'FarmEasy നേരിട്ട്',
+    farmEasyDirect: 'CropSetu നേരിട്ട്',
     otherSellers: 'മറ്റ് വില്‍ക്കുന്നവര്‍',
     similarProducts: 'സമാന ഉല്‍പ്പന്നങ്ങള്‍',
     highlightsTitle: 'ഹൈലൈറ്റ്സ്',
@@ -292,7 +292,7 @@ export default {
     manufacturer: 'നിര്‍മ്മാതാവ്',
     returnPolicy: 'റിട്ടേണ്‍ പോളിസി',
     codPolicy: 'ക്യാഷ് ഓണ്‍ ഡെലിവറി പോളിസി',
-    assuredPolicy: 'FarmEasy ഉറപ്പ്',
+    assuredPolicy: 'CropSetu ഉറപ്പ്',
     buyAt: '₹{{price}} ന് വാങ്ങുക',
   },
 
@@ -302,7 +302,7 @@ export default {
     sellerVerified: 'വിൽക്കുന്നയാൾ പരിശോധിച്ചുറപ്പാക്കി',
     animalDetails: 'മൃഗ വിവരങ്ങൾ', sellerInfo: 'വിൽക്കുന്നയാളുടെ വിവരം',
     postedDate: '{{date}}-ന് പോസ്റ്റ് ചെയ്തു',
-    safetyTipsText: '• വാങ്ങുന്നതിന് മുമ്പ് മൃഗത്തെ നേരിട്ട് പരിശോധിക്കുക\n• വാക്സിൻ സർട്ടിഫിക്കറ്റ് ആവശ്യപ്പെടുക\n• മൃഗം ലഭിച്ച ശേഷം മാത്രം പണം കൈമാറുക\n• FarmEasy ഇടപാടുകൾക്ക് ഉത്തരവാദിത്തമില്ല',
+    safetyTipsText: '• വാങ്ങുന്നതിന് മുമ്പ് മൃഗത്തെ നേരിട്ട് പരിശോധിക്കുക\n• വാക്സിൻ സർട്ടിഫിക്കറ്റ് ആവശ്യപ്പെടുക\n• മൃഗം ലഭിച്ച ശേഷം മാത്രം പണം കൈമാറുക\n• CropSetu ഇടപാടുകൾക്ക് ഉത്തരവാദിത്തമില്ല',
   },
 
   addAnimal: {
@@ -504,7 +504,7 @@ export default {
     callUs: 'ഞങ്ങളെ വിളിക്കൂ: 1800-XXX-XXXX (സൗജന്യം)',
     termsLabel: 'നിബന്ധനകൾ, നയങ്ങൾ & ലൈസൻസുകൾ',
     browseFAQs: 'FAQ-കൾ കാണുക', faqsSub: 'സാധാരണ ചോദ്യങ്ങൾക്ക് ഉത്തരം കണ്ടെത്തുക',
-    versionText: 'FarmEasy v1.0.0 · ഇന്ത്യൻ കർഷകർക്കായി സ്നേഹത്തോടെ നിർമ്മിച്ചത്',
+    versionText: 'CropSetu v1.0.0 · ഇന്ത്യൻ കർഷകർക്കായി സ്നേഹത്തോടെ നിർമ്മിച്ചത്',
     animals: 'മൃഗങ്ങൾ', orders: 'ഓർഡറുകൾ', rentals: 'വാടകകൾ',
     selectState: 'നിങ്ങളുടെ സംസ്ഥാനം തിരഞ്ഞെടുക്കുക',
     manualLang: 'കൈമുതൽ',
@@ -836,7 +836,7 @@ export default {
   },
 
   sellerProfile: {
-    backToFarmEasy: 'FarmEasy-ലേക്ക് മടങ്ങുക',
+    backToCropSetu: 'CropSetu-ലേക്ക് മടങ്ങുക',
   },
   crops: {
     soybean: 'സോയാബീന്‍', cotton: 'പരുത്തി', rice: 'അരി', wheat: 'ഗോതമ്പ്',

@@ -1,5 +1,5 @@
 /**
- * FarmEasy — Multi-language Translations
+ * CropSetu — Multi-language Translations
  * Supported: English (en) | Hindi (hi) | Marathi (mr) |
  *            Tamil (ta) | Kannada (kn) | Malayalam (ml) |
  *            Telugu (te) | Bengali (bn) | Gujarati (gu) | Punjabi (pa)
@@ -18,7 +18,7 @@ export const translations = {
   // ─── ENGLISH ─────────────────────────────────────────────────────────────
   en: {
     // Common
-    appName: 'FarmEasy',
+    appName: 'CropSetu',
     loading: 'Loading...',
     cancel: 'Cancel',
     save: 'Save',
@@ -226,7 +226,7 @@ export const translations = {
     help: 'Help & Support',
     helpSub: 'FAQs and contact us',
     terms: 'Terms & Privacy',
-    rate: 'Rate FarmEasy',
+    rate: 'Rate CropSetu',
     rateSub: 'Share your feedback',
     govSchemes: 'Government Schemes',
     govSchemesSub: 'PM Kisan, Crop Insurance, Soil Health Card & more',
@@ -252,7 +252,7 @@ export const translations = {
       otpSentTo: 'Sent to +91 {{phone}}',
       verifyLogin: 'Verify & Login',
       resendOtp: 'Resend OTP',
-      welcome: 'Welcome to FarmEasy!',
+      welcome: 'Welcome to CropSetu!',
       yourName: 'What should we call you?',
       namePlaceholder: 'Your name',
       getStarted: 'Get Started →',
@@ -385,12 +385,12 @@ export const translations = {
       chooseAddress: 'Choose Delivery Address', noAddresses: 'No saved addresses yet',
       addAddressHint: 'Add an address at checkout', defaultBadge: 'Default',
       addNewAddress: 'Add New Address', soldBy: 'Sold by',
-      farmEasyDirect: 'FarmEasy Direct', otherSellers: 'Other sellers',
+      farmEasyDirect: 'CropSetu Direct', otherSellers: 'Other sellers',
       similarProducts: 'Similar Products', highlightsTitle: 'Product Highlights',
       allDetailsTitle: 'All Details', specifications: 'Specifications',
       manufacturer: 'Manufacturer Details',
       returnPolicy: '7 Days Return Policy', codPolicy: 'Cash on Delivery',
-      assuredPolicy: 'FarmEasy Assured',
+      assuredPolicy: 'CropSetu Assured',
       buyAt: 'BUY AT ₹{{price}}',
     },
     animalDetail: {
@@ -401,7 +401,7 @@ export const translations = {
       animalDetails: 'Animal Details',
       sellerInfo: 'Seller Information',
       postedDate: 'Posted {{date}}',
-      safetyTipsText: '• Visit and physically inspect the animal before buying\n• Ask for vaccination certificate\n• Transfer payment only after receiving animal\n• FarmEasy is not responsible for transactions',
+      safetyTipsText: '• Visit and physically inspect the animal before buying\n• Ask for vaccination certificate\n• Transfer payment only after receiving animal\n• CropSetu is not responsible for transactions',
     },
     addAnimal: {
       limitReached: 'Limit reached',
@@ -886,7 +886,7 @@ export const translations = {
       termsLabel: 'Terms, Policies and Licenses',
       browseFAQs: 'Browse FAQs',
       faqsSub: 'Find answers to common questions',
-      versionText: 'FarmEasy v1.0.0 · Made with love for Indian Farmers',
+      versionText: 'CropSetu v1.0.0 · Made with love for Indian Farmers',
       animals: 'Animals',
       orders: 'Orders',
       rentals: 'Rentals',
@@ -923,7 +923,7 @@ export const translations = {
       catIrrigation: 'Irrigation\nEquipment',
       catMachinery: 'Tractors &\nHarvesters',
       catSolar: 'Solar Lamps\n& Tech',
-      browse: 'Browse', shopName: 'FarmEasy Shop', shopBySection: 'SHOP BY CATEGORY',
+      browse: 'Browse', shopName: 'CropSetu Shop', shopBySection: 'SHOP BY CATEGORY',
       comingSoonMsg: 'Products will be available here shortly.',
       shopSub: 'Farmer services marketplace',
     },
@@ -1132,7 +1132,7 @@ export const translations = {
       ratingRequiredMsg: 'Please select ★ rating.',
       doctorNotFound: 'Doctor not found',
       goBack: '← Go Back',
-      whatsappMsg: 'Hello Doctor, I am contacting through FarmEasy. My animal needs help.',
+      whatsappMsg: 'Hello Doctor, I am contacting through CropSetu. My animal needs help.',
       farmerRatingsDetail: '({{count}} farmer ratings)',
       reviewToday: 'Today',
       reviewDayAgo: '1 day ago',
@@ -1742,7 +1742,7 @@ export const translations = {
       exempt: 'Exempt',
       pending: 'Pending',
       added: 'Added',
-      backToFarmEasy: 'Back to FarmEasy',
+      backToCropSetu: 'Back to CropSetu',
     },
     crops: {
       soybean: 'Soybean', cotton: 'Cotton', rice: 'Rice', wheat: 'Wheat',
@@ -1780,7 +1780,7 @@ export const translations = {
   // ─── HINDI ───────────────────────────────────────────────────────────────
   hi: {
     // Common
-    appName: 'FarmEasy',
+    appName: 'CropSetu',
     loading: 'लोड हो रहा है...',
     cancel: 'रद्द करें',
     save: 'सहेजें',
@@ -1987,7 +1987,7 @@ export const translations = {
     help: 'सहायता और समर्थन',
     helpSub: 'FAQs और संपर्क करें',
     terms: 'नियम और गोपनीयता',
-    rate: 'FarmEasy को रेट करें',
+    rate: 'CropSetu को रेट करें',
     rateSub: 'अपनी प्रतिक्रिया साझा करें',
     govSchemes: 'सरकारी योजनाएं',
     govSchemesSub: 'पीएम किसान, फसल बीमा, मृदा स्वास्थ्य कार्ड और अधिक',
@@ -2013,7 +2013,7 @@ export const translations = {
       otpSentTo: '+91 {{phone}} पर भेजा गया',
       verifyLogin: 'वेरिफाई करें और लॉगिन करें',
       resendOtp: 'OTP दोबारा भेजें',
-      welcome: 'FarmEasy में आपका स्वागत है!',
+      welcome: 'CropSetu में आपका स्वागत है!',
       yourName: 'हम आपको क्या कहें?',
       namePlaceholder: 'आपका नाम',
       getStarted: 'शुरू करें →',
@@ -2145,11 +2145,11 @@ export const translations = {
       hotDeal: 'हॉट डील', expressDelivery: 'एक्सप्रेस डिलीवरी',
       chooseAddress: 'पता चुनें', noAddresses: 'कोई पता नहीं', addAddressHint: 'पहले अपना पता जोड़ें',
       defaultBadge: 'डिफ़ॉल्ट', addNewAddress: 'नया पता जोड़ें',
-      soldBy: 'विक्रेता', farmEasyDirect: 'FarmEasy डायरेक्ट', otherSellers: 'अन्य विक्रेता',
+      soldBy: 'विक्रेता', farmEasyDirect: 'CropSetu डायरेक्ट', otherSellers: 'अन्य विक्रेता',
       similarProducts: 'समान उत्पाद', highlightsTitle: 'मुख्य विशेषताएं', allDetailsTitle: 'सभी विवरण',
       specifications: 'विनिर्देश', manufacturer: 'निर्माता',
       returnPolicy: '7 दिन आसान वापसी', codPolicy: 'कैश ऑन डिलीवरी उपलब्ध',
-      assuredPolicy: 'FarmEasy गुणवत्ता आश्वासन',
+      assuredPolicy: 'CropSetu गुणवत्ता आश्वासन',
       buyAt: '₹{{price}} में खरीदें',
     },
     animalDetail: {
@@ -2160,7 +2160,7 @@ export const translations = {
       animalDetails: 'पशु विवरण',
       sellerInfo: 'विक्रेता जानकारी',
       postedDate: '{{date}} को पोस्ट किया',
-      safetyTipsText: '• खरीदने से पहले जानवर को खुद देखें\n• टीका प्रमाणपत्र मांगें\n• जानवर मिलने के बाद ही भुगतान करें\n• FarmEasy लेनदेन के लिए जिम्मेदार नहीं है',
+      safetyTipsText: '• खरीदने से पहले जानवर को खुद देखें\n• टीका प्रमाणपत्र मांगें\n• जानवर मिलने के बाद ही भुगतान करें\n• CropSetu लेनदेन के लिए जिम्मेदार नहीं है',
     },
     addAnimal: {
       limitReached: 'सीमा पार',
@@ -2628,7 +2628,7 @@ export const translations = {
       termsLabel: 'नियम, नीतियां और लाइसेंस',
       browseFAQs: 'FAQs देखें',
       faqsSub: 'सामान्य प्रश्नों के उत्तर पाएं',
-      versionText: 'FarmEasy v1.0.0 · भारतीय किसानों के लिए',
+      versionText: 'CropSetu v1.0.0 · भारतीय किसानों के लिए',
       animals: 'पशु',
       orders: 'ऑर्डर',
       rentals: 'किराया',
@@ -2664,7 +2664,7 @@ export const translations = {
       catIrrigation: 'सिंचाई\nउपकरण',
       catMachinery: 'ट्रैक्टर और\nहार्वेस्टर',
       catSolar: 'सोलर लैंप\nऔर तकनीक',
-      browse: 'ब्राउज़ करें', shopName: 'FarmEasy शॉप', shopBySection: 'श्रेणी से खरीदें',
+      browse: 'ब्राउज़ करें', shopName: 'CropSetu शॉप', shopBySection: 'श्रेणी से खरीदें',
       comingSoonMsg: 'जल्द ही उपलब्ध होगा', shopSub: 'बीज, खाद, कीटनाशक और अधिक',
     },
     animal: {
@@ -2800,7 +2800,7 @@ export const translations = {
       reviewThanksMsg: 'आपकी रेटिंग जमा हो गई।', reviewError: 'त्रुटि', reviewErrorMsg: 'पुनः प्रयास करें',
       ratingRequired: 'रेटिंग दें', ratingRequiredMsg: 'कृपया ★ चुनें',
       doctorNotFound: 'डॉक्टर नहीं मिला', goBack: '← वापस जाएं',
-      whatsappMsg: 'नमस्ते डॉक्टर, मैं FarmEasy से संपर्क कर रहा हूं। मेरे पशु को समस्या है।',
+      whatsappMsg: 'नमस्ते डॉक्टर, मैं CropSetu से संपर्क कर रहा हूं। मेरे पशु को समस्या है।',
       farmerRatingsDetail: '({{count}} किसानों की रेटिंग)',
       reviewToday: 'आज', reviewDayAgo: '1 दिन पहले',
       reviewDaysAgo: '{{n}} दिन पहले', reviewMonthsAgo: '{{n}} महीने पहले',
@@ -3329,7 +3329,7 @@ export const translations = {
       exempt: 'छूट प्राप्त',
       pending: 'लंबित',
       added: 'जोड़ा गया',
-      backToFarmEasy: 'FarmEasy पर वापस जाएं',
+      backToCropSetu: 'CropSetu पर वापस जाएं',
     },
     crops: {
       soybean: 'सोयाबीन', cotton: 'कपास', rice: 'चावल', wheat: 'गेहूं',
@@ -3367,7 +3367,7 @@ export const translations = {
   // ─── MARATHI ─────────────────────────────────────────────────────────────
   mr: {
     // Common
-    appName: 'FarmEasy',
+    appName: 'CropSetu',
     loading: 'लोड होत आहे...',
     cancel: 'रद्द करा',
     save: 'जतन करा',
@@ -3562,7 +3562,7 @@ export const translations = {
     help: 'मदत आणि समर्थन',
     helpSub: 'FAQs आणि संपर्क करा',
     terms: 'अटी आणि गोपनीयता',
-    rate: 'FarmEasy ला रेट करा',
+    rate: 'CropSetu ला रेट करा',
     rateSub: 'तुमचा अभिप्राय द्या',
     govSchemes: 'सरकारी योजना',
     govSchemesSub: 'पीएम किसान, पीक विमा, माती आरोग्य कार्ड आणि अधिक',
@@ -3588,7 +3588,7 @@ export const translations = {
       otpSentTo: '+91 {{phone}} वर पाठवला',
       verifyLogin: 'OTP तपासा आणि लॉगिन करा',
       resendOtp: 'OTP पुन्हा पाठवा',
-      welcome: 'FarmEasy मध्ये आपले स्वागत आहे!',
+      welcome: 'CropSetu मध्ये आपले स्वागत आहे!',
       yourName: 'आम्ही तुम्हाला काय म्हणावे?',
       namePlaceholder: 'तुमचे नाव',
       getStarted: 'सुरुवात करा →',
@@ -3720,11 +3720,11 @@ export const translations = {
       hotDeal: 'हॉट डील', expressDelivery: 'एक्सप्रेस डिलिव्हरी',
       chooseAddress: 'पत्ता निवडा', noAddresses: 'कोणताही पत्ता नाही', addAddressHint: 'आधी तुमचा पत्ता जोडा',
       defaultBadge: 'डीफॉल्ट', addNewAddress: 'नवीन पत्ता जोडा',
-      soldBy: 'विक्रेता', farmEasyDirect: 'FarmEasy डायरेक्ट', otherSellers: 'इतर विक्रेते',
+      soldBy: 'विक्रेता', farmEasyDirect: 'CropSetu डायरेक्ट', otherSellers: 'इतर विक्रेते',
       similarProducts: 'सारखी उत्पादने', highlightsTitle: 'मुख्य वैशिष्ट्ये', allDetailsTitle: 'सर्व तपशील',
       specifications: 'वैशिष्ट्ये', manufacturer: 'उत्पादक',
       returnPolicy: '7 दिवसांत सोपी परत', codPolicy: 'कॅश ऑन डिलिव्हरी उपलब्ध',
-      assuredPolicy: 'FarmEasy गुणवत्ता हमी',
+      assuredPolicy: 'CropSetu गुणवत्ता हमी',
       buyAt: '₹{{price}} ला खरेदी करा',
     },
     animalDetail: {
@@ -3735,7 +3735,7 @@ export const translations = {
       animalDetails: 'जनावराचे तपशील',
       sellerInfo: 'विक्रेत्याची माहिती',
       postedDate: '{{date}} ला पोस्ट केले',
-      safetyTipsText: '• विकत घेण्यापूर्वी जनावराची प्रत्यक्ष तपासणी करा\n• लसीकरण प्रमाणपत्र मागा\n• जनावर मिळाल्यावरच पेमेंट करा\n• FarmEasy व्यवहारांसाठी जबाबदार नाही',
+      safetyTipsText: '• विकत घेण्यापूर्वी जनावराची प्रत्यक्ष तपासणी करा\n• लसीकरण प्रमाणपत्र मागा\n• जनावर मिळाल्यावरच पेमेंट करा\n• CropSetu व्यवहारांसाठी जबाबदार नाही',
     },
     addAnimal: {
       limitReached: 'मर्यादा संपली',
@@ -4203,7 +4203,7 @@ export const translations = {
       termsLabel: 'अटी, धोरणे आणि परवाने',
       browseFAQs: 'FAQs पाहा',
       faqsSub: 'सामान्य प्रश्नांची उत्तरे शोधा',
-      versionText: 'FarmEasy v1.0.0 · भारतीय शेतकऱ्यांसाठी प्रेमाने',
+      versionText: 'CropSetu v1.0.0 · भारतीय शेतकऱ्यांसाठी प्रेमाने',
       animals: 'जनावरे',
       orders: 'ऑर्डर',
       rentals: 'भाडे',
@@ -4239,7 +4239,7 @@ export const translations = {
       catIrrigation: 'सिंचन\nउपकरणे',
       catMachinery: 'ट्रॅक्टर आणि\nहार्वेस्टर',
       catSolar: 'सोलर दिवे\nआणि तंत्रज्ञान',
-      browse: 'ब्राउझ करा', shopName: 'FarmEasy शॉप', shopBySection: 'श्रेणीनुसार खरेदी करा',
+      browse: 'ब्राउझ करा', shopName: 'CropSetu शॉप', shopBySection: 'श्रेणीनुसार खरेदी करा',
       comingSoonMsg: 'लवकरच उपलब्ध होईल', shopSub: 'बियाणे, खते, कीटकनाशके आणि अधिक',
     },
     animal: {
@@ -4457,7 +4457,7 @@ export const translations = {
       doctorNotFound: 'डॉक्टर सापडला नाही',
       goBack: '← परत जा',
       loading: 'माहिती लोड होत आहे...',
-      whatsappMsg: 'नमस्कार डॉक्टर, मी FarmEasy वरून संपर्क करत आहे. माझ्या प्राण्याला समस्या आहे. कृपया मदत करा.',
+      whatsappMsg: 'नमस्कार डॉक्टर, मी CropSetu वरून संपर्क करत आहे. माझ्या प्राण्याला समस्या आहे. कृपया मदत करा.',
       farmerRatingsDetail: '({{count}} शेतकऱ्यांचे रेटिंग)',
       reviewToday: 'आज',
       reviewDayAgo: '1 दिवसापूर्वी',
@@ -4999,7 +4999,7 @@ export const translations = {
       exempt: 'सूट आहे',
       pending: 'प्रलंबित',
       added: 'जोडले',
-      backToFarmEasy: 'FarmEasy वर परत जा',
+      backToCropSetu: 'CropSetu वर परत जा',
     },
     crops: {
       soybean: 'सोयाबीन', cotton: 'कापूस', rice: 'तांदूळ', wheat: 'गहू',

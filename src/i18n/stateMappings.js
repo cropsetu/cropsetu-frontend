@@ -1,5 +1,5 @@
 /**
- * FarmEasy — Indian State → Language Mapping
+ * CropSetu — Indian State → Language Mapping
  * Selecting a state automatically activates that state's primary native language.
  * States with no dedicated language file fall back to Hindi (hi) or English (en).
  */

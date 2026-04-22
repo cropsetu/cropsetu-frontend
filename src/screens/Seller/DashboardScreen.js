@@ -356,7 +356,7 @@ export default function DashboardScreen({ navigation }) {
             }}
           >
             <Ionicons name="arrow-back-outline" size={20} color={COLORS.error} />
-            <Text style={d.logoutTxt}>Back to FarmEasy</Text>
+            <Text style={d.logoutTxt}>Back to CropSetu</Text>
           </TouchableOpacity>
 
           <View style={{ height: 40 }} />

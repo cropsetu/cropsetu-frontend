@@ -779,7 +779,7 @@ export default function AIChatScreen({ navigation, route }) {
     try {
       const { status } = await Audio.requestPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Microphone Permission', 'Please allow microphone access in Settings → Apps → FarmEasy → Permissions.');
+        Alert.alert('Microphone Permission', 'Please allow microphone access in Settings → Apps → CropSetu → Permissions.');
         return;
       }
       await Audio.setAudioModeAsync({

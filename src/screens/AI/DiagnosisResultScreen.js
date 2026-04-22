@@ -273,7 +273,7 @@ export default function DiagnosisResultScreen({ navigation, route }) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FarmEasy — Crop Disease Report — ${esc(rptId)}</title>
+<title>CropSetu — Crop Disease Report — ${esc(rptId)}</title>
 <style>
 @page{size:A4;margin:6mm 6mm}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -441,7 +441,7 @@ ${weeklyActions.map((a, i) => `  <li>
   </li>`).join('\n')}
 </ul>
 
-<div class="pf"><span>🌿 FarmEasy · Report ${esc(rptId)}</span><span>Page 1 of 4 · Farmer Summary</span></div>
+<div class="pf"><span>🌿 CropSetu · Report ${esc(rptId)}</span><span>Page 1 of 4 · Farmer Summary</span></div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════
@@ -515,7 +515,7 @@ ${doNotUseR.map(d => `<div class="sf sf-no">✗ ${esc(typeof d === 'string' ? d 
 <div class="ir"><span class="lbl">If worsening</span><span class="val">Call nearest KVK${farmCtx.district ? ` (${esc(farmCtx.district)})` : ''}</span></div>
 <div class="ir"><span class="lbl">Helpline (Toll-free)</span><span class="val">Kisan Call Centre — 1800-180-1551</span></div>
 
-<div class="pf"><span>🌿 FarmEasy · Report ${esc(rptId)}</span><span>Page 2 of 4 · Detailed Guidance</span></div>
+<div class="pf"><span>🌿 CropSetu · Report ${esc(rptId)}</span><span>Page 2 of 4 · Detailed Guidance</span></div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════
@@ -580,7 +580,7 @@ ${incompR.length > 0 ? `
 <!-- Compliance -->
 ${compAudit.length > 0 ? `
 <div class="bx-green" style="margin-top:6px">
-  <div style="font-weight:800;color:#1B5E20;margin-bottom:4px">✓ REGULATORY COMPLIANCE (verified by FarmEasy AI)</div>
+  <div style="font-weight:800;color:#1B5E20;margin-bottom:4px">✓ REGULATORY COMPLIANCE (verified by CropSetu AI)</div>
   ${compAudit.map(c => `<div class="cc">✓ ${esc(c.check || '')}: ${esc(c.status || 'PASSED')}${c.detail ? ` — ${esc(c.detail)}` : ''}</div>`).join('\n')}
 </div>` : ''}
 
@@ -597,7 +597,7 @@ ${compAudit.length > 0 ? `
   <div style="margin-top:6px"><div class="dealer-field" style="width:100%">Batch numbers: ___________________________________________________</div></div>
 </div>
 
-<div class="pf pf-purple"><span>📋 FarmEasy Dispensing · Report ${esc(rptId)}</span><span>Page 3 of 4 · For Input Dealer</span></div>
+<div class="pf pf-purple"><span>📋 CropSetu Dispensing · Report ${esc(rptId)}</span><span>Page 3 of 4 · For Input Dealer</span></div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════
@@ -663,7 +663,7 @@ ${compAudit.map(c => `<div style="font-size:11px;padding:2px 0">[✓] <strong>${
 
 <!-- E. System Metadata -->
 <div class="st" style="color:#37474F;border-color:#B0BEC5">⚙ E. SYSTEM METADATA</div>
-<div class="ir"><span class="lbl">FarmEasy version</span><span class="val">${esc(sysMeta.version || '2.4.1')}</span></div>
+<div class="ir"><span class="lbl">CropSetu version</span><span class="val">${esc(sysMeta.version || '2.4.1')}</span></div>
 <div class="ir"><span class="lbl">Vision models</span><span class="val">${esc(sysMeta.diagnosis_model || 'Gemini 2.5 Flash')}</span></div>
 <div class="ir"><span class="lbl">Knowledge base</span><span class="val">${esc(sysMeta.knowledge_base || 'ICAR + CABI + EPPO')}</span></div>
 <div class="ir"><span class="lbl">Weather API</span><span class="val">${esc(sysMeta.weather_api || 'Open-Meteo')}</span></div>
@@ -682,7 +682,7 @@ ${compAudit.map(c => `<div style="font-size:11px;padding:2px 0">[✓] <strong>${
 <div style="text-align:center;font-size:11px;color:#888;padding:8px 0;font-weight:700">END OF REPORT${isBilingual ? ` | ${esc(t('diagnosis.endOfReport') || '')}` : ''}</div>
 <hr class="dv2"/>
 
-<div class="pf pf-dark"><span>📊 FarmEasy Annex · ${esc(rptId)}</span><span>Page 4 of 4 · End of Report</span></div>
+<div class="pf pf-dark"><span>📊 CropSetu Annex · ${esc(rptId)}</span><span>Page 4 of 4 · End of Report</span></div>
 </div>
 
 </body>
@@ -714,7 +714,7 @@ ${compAudit.map(c => `<div style="font-size:11px;padding:2px 0">[✓] <strong>${
       if (canShare) {
         await Sharing.shareAsync(uri, {
           mimeType: 'application/pdf',
-          dialogTitle: `FarmEasy Diagnosis — ${disease}`,
+          dialogTitle: `CropSetu Diagnosis — ${disease}`,
           UTI: 'com.adobe.pdf',
         });
       } else {

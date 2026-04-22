@@ -1,5 +1,5 @@
 /**
- * ImmersiveKit — shared 3D animation components for FarmEasy
+ * ImmersiveKit — shared 3D animation components for CropSetu
  * Bright vivid 3D design language used across all screens.
  */
 import { useRef, useEffect } from 'react';

@@ -1,6 +1,6 @@
 /** Telugu — తెలుగు */
 export default {
-  appName: 'FarmEasy',
+  appName: 'CropSetu',
   loading: 'లోడవుతోంది...',
   cancel: 'రద్దు',
   save: 'సేవ్',
@@ -152,7 +152,7 @@ export default {
   help: 'సహాయం & మద్దతు',
   helpSub: 'FAQ లు & మమ్మల్ని సంప్రదించండి',
   terms: 'నిబంధనలు & గోప్యత',
-  rate: 'FarmEasy ను రేట్ చేయి',
+  rate: 'CropSetu ను రేట్ చేయి',
   rateSub: 'మీ అభిప్రాయం పంచుకోండి',
   govSchemes: 'ప్రభుత్వ పథకాలు',
   govSchemesSub: 'PM కిసాన్, పంట బీమా, నేల ఆరోగ్య కార్డు & మరిన్ని',
@@ -177,7 +177,7 @@ export default {
     otpSentTo: '+91 {{phone}} కు పంపబడింది',
     verifyLogin: 'ధృవీకరించి లాగిన్ చేయి',
     resendOtp: 'OTP మళ్ళీ పంపు',
-    welcome: 'FarmEasy కి స్వాగతం!',
+    welcome: 'CropSetu కి స్వాగతం!',
     yourName: 'మిమ్మల్ని ఏమని పిలవాలి?',
     namePlaceholder: 'మీ పేరు',
     getStarted: 'ప్రారంభిద్దాం →',
@@ -283,7 +283,7 @@ export default {
     defaultBadge: 'డిఫాల్ట్',
     addNewAddress: 'కొత్త చిరునామా చేర్చు',
     soldBy: 'విక్రయించేది',
-    farmEasyDirect: 'FarmEasy నేరుగా',
+    farmEasyDirect: 'CropSetu నేరుగా',
     otherSellers: 'ఇతర విక్రేతలు',
     similarProducts: 'సమాన ఉత్పత్తులు',
     highlightsTitle: 'ముఖ్యాంశాలు',
@@ -292,7 +292,7 @@ export default {
     manufacturer: 'తయారీదారు',
     returnPolicy: 'రిటర్న్ పాలసీ',
     codPolicy: 'డెలివరీపై నగదు పాలసీ',
-    assuredPolicy: 'FarmEasy హామీ',
+    assuredPolicy: 'CropSetu హామీ',
     buyAt: '₹{{price}} కు కొనండి',
   },
 
@@ -302,7 +302,7 @@ export default {
     sellerVerified: 'విక్రేత ధృవీకరించబడ్డారు',
     animalDetails: 'పశువు వివరాలు', sellerInfo: 'విక్రేత సమాచారం',
     postedDate: '{{date}} న పోస్ట్ చేశారు',
-    safetyTipsText: '• కొనుగోలు చేయడానికి ముందు పశువును నేరుగా పరీక్షించండి\n• వ్యాక్సిన్ సర్టిఫికేట్ అడగండి\n• పశువు వచ్చిన తర్వాత మాత్రమే చెల్లింపు చేయండి\n• FarmEasy లావాదేవీలకు బాధ్యత వహించదు',
+    safetyTipsText: '• కొనుగోలు చేయడానికి ముందు పశువును నేరుగా పరీక్షించండి\n• వ్యాక్సిన్ సర్టిఫికేట్ అడగండి\n• పశువు వచ్చిన తర్వాత మాత్రమే చెల్లింపు చేయండి\n• CropSetu లావాదేవీలకు బాధ్యత వహించదు',
   },
 
   addAnimal: {
@@ -500,7 +500,7 @@ export default {
     callUs: 'మమ్మల్ని కాల్ చేయండి: 1800-XXX-XXXX (ఉచితం)',
     termsLabel: 'నిబంధనలు, విధానాలు & లైసెన్సులు',
     browseFAQs: 'FAQ లు చూడండి', faqsSub: 'సాధారణ ప్రశ్నలకు సమాధానాలు కనుగొనండి',
-    versionText: 'FarmEasy v1.0.0 · భారతీయ రైతుల కోసం ప్రేమతో నిర్మించబడింది',
+    versionText: 'CropSetu v1.0.0 · భారతీయ రైతుల కోసం ప్రేమతో నిర్మించబడింది',
     animals: 'పశువులు', orders: 'ఆర్డర్లు', rentals: 'అద్దెలు',
     selectState: 'మీ రాష్ట్రాన్ని ఎంచుకోండి',
     manualLang: 'మాన్యువల్',
@@ -832,7 +832,7 @@ export default {
   },
 
   sellerProfile: {
-    backToFarmEasy: 'FarmEasy కి తిరిగి',
+    backToCropSetu: 'CropSetu కి తిరిగి',
   },
   crops: {
     soybean: 'సోయాబీన్', cotton: 'పత్తి', rice: 'బియ్యం', wheat: 'గోధుమ',

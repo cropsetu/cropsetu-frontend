@@ -1,5 +1,5 @@
 /**
- * WeatherHome — FarmEasy Field Monitor
+ * WeatherHome — CropSetu Field Monitor
  *
  * Sections:
  *  1. Hero card  — gradient bg + ImageBackground field photo + temp + sun arc
